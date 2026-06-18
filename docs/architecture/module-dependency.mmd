@@ -1,0 +1,19 @@
+graph TD
+    NF[note_factory<br/>mint_range_accrual / mint_capped_upside / mint_principal_protected] --> N[note<br/>NoteBase&lt;S&gt; · claim]
+    NF --> SR[strategy_range_accrual]
+    NF --> SC[strategy_capped_upside]
+    NF --> SP[strategy_principal_protected]
+    SR -.witness RangeAccrual.-> N
+    SC -.witness CappedUpside.-> N
+    SP -.witness PrincipalProtected.-> N
+    NF --> LB[leaderboard<br/>append-only registry]
+    NF --> FV[fee_vault<br/>FeeAdminCap]
+    N --> PMext[predict_manager<br/>new/deposit/withdraw/position]
+    SR --> PRext[predict<br/>mint/mint_range/redeem_permissionless]
+    SC --> PRext
+    SP --> PRext
+    SP --> PLP[predict::supply / withdraw<br/>PLP yield]
+    PRext --> ORA[oracle::OracleSVI<br/>shared, per expiry]
+    PRext --> PRED[predict::Predict<br/>shared global config]
+    LB --> EV[events]
+    N --> EV

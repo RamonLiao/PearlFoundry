@@ -1,0 +1,29 @@
+sequenceDiagram
+    participant U as User/KOL
+    participant FE as Frontend+SDK
+    participant W as Walrus
+    participant F as note_factory (Move)
+    participant PM as PredictManager (per-note)
+    participant P as predict + OracleSVI (shared)
+    participant K as Keeper (anyone)
+
+    U->>FE: pick template + params
+    FE->>FE: pricing-engine payoff + Monte-Carlo
+    FE->>W: store term sheet PDF + backtest CSV
+    W-->>FE: blob_id
+    FE->>F: mint PTB (params, blob_id, payment)
+    F->>F: collect issuance fee -> fee_vault
+    F->>PM: new() + deposit(principal)
+    loop each leg (strike/expiry)
+        F->>P: predict::mint(Predict, PM, OracleSVI, MarketKey, qty)
+    end
+    F->>F: NoteBase{manager_id, legs[], blob_id} ; leaderboard::register
+    F-->>U: transfer Note + tx receipt + Walrus URL
+
+    Note over P: ... time passes, oracle reaches settled ...
+    K->>P: redeem_permissionless(each leg) -> settle into PM balance
+    U->>F: claim(Note, PM)
+    F->>F: assert expiry & oracle settled & owner & manager match
+    F->>PM: withdraw(balance) -> Coin<DUSDC>
+    F->>F: perf_fee -> fee_vault ; emit NoteSettled
+    F-->>U: payout Coin to owner ; Note deleted

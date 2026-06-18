@@ -1,0 +1,19 @@
+# Interface-stub for the on-chain DeepBook Predict package (testnet).
+#
+# This package is NEVER deployed. `published-at` points at the live Predict
+# package so that `structured_note_factory` links against the real on-chain
+# modules. Every function body here is `abort 0` — only the signatures and
+# struct abilities matter (the Move linker resolves calls by name + signature
+# against the published-at address; struct field layout is not encoded into
+# the caller's bytecode).
+#
+# Signatures mirror the verified ABI fetched on 2026-06-16 via
+# sui_getNormalizedMoveModulesByPackage. Keep in sync if Predict upgrades.
+
+[package]
+name = "Predict"
+edition = "2024"
+published-at = "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138"
+
+[addresses]
+predict = "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138"

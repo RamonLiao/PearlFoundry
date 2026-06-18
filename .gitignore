@@ -1,0 +1,11 @@
+# CLAUDE-related (per user global rule: do not commit)
+.claude/
+CLAUDE.md
+**/memory/
+
+# Move build artifacts
+move/build/
+move/predict_interface/build/
+
+# OS
+.DS_Store
