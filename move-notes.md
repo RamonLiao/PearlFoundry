@@ -92,3 +92,63 @@
 - `claim<S>` 全 leg settle + withdraw + perf fee + emit → `note_factory`
 - 事件 struct（NoteMinted/NoteSettled…）→ `events` module
 - `RangeParams`/`CappedParams`/`PPParams` witness struct → 各 `strategy_*`
+
+## 2026-06-19 — OracleSVI ID 枚舉（解 Task 8 blocker）
+- **枚舉方法**：`suix_queryEvents` MoveEventType=`<PKG>::registry::OracleCreated`（descending=最新在前）。
+  欄位：`oracle_id, oracle_cap_id, underlying_asset(String), expiry(u64 ms), min_strike(u64), tick_size(u64)`。
+- **BTC testnet 現況**：每 **15 分鐘**一檔（expiry 間隔 900000ms），`min_strike=50000000000000`、`tick_size=1000000000`。scale=1e9 → strike $50,000 起、tick $1。spot≈$62,398（`prices.spot`）。
+- **OracleSVI object**：`type=<PKG>::oracle::OracleSVI`、**Shared**（建 PTB 須帶 `initial_shared_version`）。
+  - active oracle：`active:true`、`settlement_price:null` → 可 mint。
+  - 已結算：`active:false`、`settlement_price` 有值 → 可測 claim/settle path。
+- **關鍵洞察**：oracle ID 是 **ephemeral**（15min 滾動），**禁止 hardcode**。整合測試/前端在「建 PTB 當下」查 `OracleCreated` 動態取最新 active oracle + 其 `initial_shared_version`，再組 PTB。多 expiry 取相鄰 N 檔（MVP ≤3）。
+- 範例（會過期，僅供結構參考）：active `0x30b3b07b…fb27a47a`@ver908578530 expiry1781859600000；settled `0x2b7c693f…ffaa3031` settlement_price=62611333655270。
+
+## 2026-06-19 — Task 8 testnet 整合測試（進行中）
+
+### 部署 (testnet, digest AnPSTTKL1fvw3VDPZcqYpeJeFoG7gJEJk34prV2NbB2K)
+- **package** `0xa69904d3bafe89a197da763f3c5c7ca39522aa3d81974b3910ad5c261bdcb21a`
+- FactoryConfig (shared, v908750651) `0xc8516309c6c65dd71a910a966abb8e74284ecb49eaaae1607acbf7440f249351`
+- FeeVault (shared, v908750651) `0x9991245eed652140437bcda579c5ff6f7f7fae13986d6145d65941abacd75c2c`
+- FactoryAdminCap (owned) `0x5ec377311a9ffa9144245e3798eb0dd4a0fbbdff1989d5611cbd81c7d1fdab5f`
+- FeeAdminCap (owned) `0x5bbfc8079d772ae604dc08b65c2cdea78c1ebf281d64696297b86af3398fce08`
+- UpgradeCap (owned) `0x5d6191f76feb6cfb6ca2fc506759bddf8b04ea8c999452e67e5abd119960612f`
+
+### 踩雷：PublishUpgradeMissingDependency
+- 症狀：publish 報 `PublishUpgradeMissingDependency in command 0`，但本地 `sui move build` 全綠。
+- 主因：publish 的 linkage table 必須涵蓋 dependency 的**完整 transitive closure**，不只直接 call 的 package。Predict 內部依賴 DEEP token (`0x36dbef…58a8`) 與 DeepBook V3 (`0xfb28c4…6982`→v19 `0x74cd56…77c8`)，我們的 Move.toml 沒宣告 → 缺。
+- 解法：新增兩個 linkage-only stub（`move/deep_interface`、`move/deepbook_interface`，各一個空 dummy module + published-at），讓 `predict_interface/Move.toml` 依賴它們，忠實反映 `note_factory → Predict → {DEEP, DeepBook}`。空 sources 會被 CLI 當「unpublished dependency」拒絕，所以每個 stub 必須至少有一個 module。
+
+### Oracle 枚舉（動態，禁 hardcode）
+- 正確 event = `oracle::OracleActivated`（**非** `registry::OracleCreated`），parsedJson 帶 `oracle_id`/`expiry`/`timestamp`。
+- 查法：`suix_queryEvents {"MoveEventType":"<predict_pkg>::oracle::OracleActivated"}` desc。
+- Oracle 物件欄位：`active:bool`、`settlement_price:null=未結算`、`underlying_asset`（全 BTC）、`expiry`（ms）。15-min rolling grid（expiry 間隔 900000ms），約到期前 ~2hr activate。
+- Predict shared obj（`Predict` type 實例）`0xc8736204d12f0a7277c86388a68bf8a194b0a14c5538ad13f22cbd8e2a38028a`
+
+### Mint round-trip (digest 13ikpdQKhFMNUj6Enk9tjGku1hDtJWX8onUJUHsVz3Gy)
+- PredictManager (PTB1 create_manager) `0x312231fc2aa5d484b4324c57ec09a876a2a008fee5f91b65ffac3046bf0eed59`
+- Note (soulbound NoteBase<RangeAccrual>, AddressOwner=sender) `0x9d560b97bf47faf89148894280d9ea421ba272ff9b273fa2289960782287d929`
+- Oracle minted into `0xd69e473b…65bfbea`（BTC, forward 62601e9, expiry 1781857800000）
+- Params：notional 10 dUSDC、3-leg up-ladder strikes 62600/62700/62800e9（step $100）、issuance fee 30000（30bps）✓
+- 事件：3× PositionMinted(ask 0.40/0.21/0.085)、FeeCollected(kind=0,30000)、PublicNoteRegistered、NoteMinted ✓
+
+### 🔑 關鍵發現：predict::mint 的 ask-price band（assert_mintable_ask code 7）
+- predict 對每個 leg 算 SVI-implied ask price，**必須落在 oracle 的允許 band 內**，否則 abort `assert_mintable_ask` code 7。
+- 實證：strike 距 forward 太遠（OTM）→ ask price 掉出下界 → abort。62500/63000/63500e9（forward 62447e9）失敗；貼 forward 的 62600/62700/62800e9 成功。
+- **對 strategy 的設計回饋**：range-accrual 的 lower/upper/step 不能 hardcode，必須綁當下 forward price 動態算窄範圍（off-chain pricing-engine 職責）。寬 ladder / 遠 OTM 尾 leg 會讓整張 note 鑄造 abort。
+- 簽署路徑（不洩漏私鑰）：TS SDK build txBytes → `sui keytool sign --data <b64>` → `sui client execute-signed-tx`。私鑰匯出被 classifier 擋（正確）。
+
+### 待續：claim（需等 oracle 結算）
+- claim 需 `oracle::is_settled==true`（settlement_price 非 null），由 Predict keeper 在 expiry 後設定，時點不可控。
+- claim.js 已備妥（claim_begin→claim_settle_expiry→claim_finalize）。expiry 1781857800000 後輪詢 is_settled，再執行。
+
+### ✅ Claim round-trip 完成（digest EveDmojukGq2EVyNRW6TzEAztdX1wDb6wYEefPXzA45E）
+- Oracle 0xd69e 結算 settlement_price=62623298781818（~$62,623，落在 leg 62600 之上 → ITM）。keeper 約在 expiry 後不久結算（輪詢 iter 35 命中）。
+- 事件：BalanceEvent withdraw 10997587、FeeCollected(kind=1 perf,102758)、NoteSettled(payout)。
+- **獲利結算**：payout 10997587 > net principal 9970000 → profit 1027587；perf fee=10%×profit=102758 ✓。holder 收 10894829 dUSDC。
+- Note 0x9d56…d929 **deleted**（+2 dynamic-field 物件一併清）；position 歸零。
+- **FeeVault Balance<DUSDC> = 132758 = 30000(issuance) + 102758(perf) 完全對帳。**
+- 簽署同 mint：keytool sign + execute-signed-tx（私鑰不離 keystore）。
+
+### Task 8 結論
+mint(2-PTB) → settle → claim 全 happy-path + 5 Monkey abort 在 testnet 驗證通過。合約金流、fee、soulbound、note 生命週期、atomic settle+withdraw 全部正確。
+整合腳本：`scripts/integration/{config,mint,claim}.js`（@mysten/sui v1.36，oracle/mgr/note 走 env 不 hardcode）。

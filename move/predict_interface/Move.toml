@@ -15,5 +15,12 @@ name = "Predict"
 edition = "2024"
 published-at = "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138"
 
+# Predict's on-chain linkage closure also pulls DEEP + DeepBook V3.
+# Declared here (not referenced in source) so the downstream publish
+# dependency vector covers the full transitive closure.
+[dependencies]
+DeepToken = { local = "../deep_interface" }
+DeepBook = { local = "../deepbook_interface" }
+
 [addresses]
 predict = "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138"

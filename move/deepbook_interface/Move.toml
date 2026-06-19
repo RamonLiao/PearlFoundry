@@ -1,0 +1,14 @@
+# Linkage-only stub for the on-chain DeepBook V3 package (testnet).
+# NEVER deployed. Exists solely so structured_note_factory's publish
+# linkage closure covers Predict's transitive dependency on DeepBook.
+# No modules — only the address mapping matters.
+#   original (identifier) id : 0xfb28c4…6982  -> `deepbook` named address
+#   published-at (current v19): 0x74cd56…77c8
+
+[package]
+name = "DeepBook"
+edition = "2024"
+published-at = "0x74cd5657843c627f3d80f713b71e9f895bbbeb470956d8a8e1185badf6cc77c8"
+
+[addresses]
+deepbook = "0xfb28c4cbc6865bd1c897d26aecbe1f8792d1509a20ffec692c800660cbec6982"

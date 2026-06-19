@@ -6,6 +6,11 @@ CLAUDE.md
 # Move build artifacts
 move/build/
 move/predict_interface/build/
+move/deep_interface/build/
+move/deepbook_interface/build/
+
+# Node (integration scripts)
+**/node_modules/
 
 # OS
 .DS_Store

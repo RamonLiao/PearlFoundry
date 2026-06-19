@@ -137,6 +137,14 @@ public(package) fun destroy<S>(note: NoteBase<S>): address {
     owner_at_mint
 }
 
+/// Soulbound transfer helper. `NoteBase` is key-only, so `transfer::transfer<T: key>`
+/// can ONLY be called by this defining module — `note_factory` cannot transfer the note
+/// itself (C1). This is the single sanctioned move-out of a note; there is deliberately
+/// no `store`-based `public_transfer` path (keeps the soulbound invariant, review F3/T6).
+public(package) fun soulbound_transfer<S>(note: NoteBase<S>, to: address) {
+    transfer::transfer(note, to);
+}
+
 // === Status constant accessors (for sibling modules / off-chain) ===
 public fun status_active(): u8 { STATUS_ACTIVE }
 public fun status_settled(): u8 { STATUS_SETTLED }

@@ -1,0 +1,12 @@
+# Linkage-only stub for the on-chain DEEP token package (testnet).
+# NEVER deployed. Exists solely so structured_note_factory's publish
+# linkage closure covers Predict's transitive dependency on `deep`.
+# No modules — only the published-at / address mapping matter.
+
+[package]
+name = "DeepToken"
+edition = "2024"
+published-at = "0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8"
+
+[addresses]
+deep = "0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8"
