@@ -35,6 +35,18 @@
 - **踩雷2 `predict::mint` ask-price band**：strike 必須貼 forward，遠 OTM abort（`assert_mintable_ask` code 7 / `pricing_config` code 1）。→ strategy 範圍須綁 live forward 動態算。
 - **整合腳本** `scripts/integration/{config,mint,claim,poll_settle}.js`（@mysten/sui v1.36，oracle/mgr/note 走 env）。簽署用 keytool sign + execute-signed-tx（私鑰不離 keystore；export 被 classifier 擋＝正確）。
 
+## Recently Completed (2026-06-20) — pricing-engine 實作 + dual-review
+- **Task 1–5 全綠（inline TDD）**：`scripts/pricing/{ladder,oracle,probe,price}.js`。測試 **14 全綠**（10 pure: ladder+monkey；4 live testnet: oracle+probe）。
+- **端到端 live**：`price.js`(16-leg)→`mint.js dryrun`=**success，net gas 0.505 SUI**；`bytes`+`GUARD=1` pre-submit dry-run 通過。
+- **4 個 plan 偏離（全 dry-run 實證，詳見 move-notes 2026-06-20 + lessons）**：
+  1. 1-leg 探測非法（`legs_per_expiry` assert `lower<upper`）→ 改 **2-leg 微 ladder**（partner 往 forward 靠，單調性隔離被測 strike）。
+  2. band 寬 ~6000-8000 ticks ≫ MAX_LEGS → boundary **maxLegs-capped**（`findBoundary` 回 `{strike,capped}`）。
+  3. gas 隨 leg 陡升（16=0.5 / 32=1.6 / 128>10 SUI 超錢包）→ off-chain **maxLegs 預設 16**（你拍板）；單 PTB 瓶頸是 gas 非 band；mint.js gasBudget→2 SUI。
+  4. oracle ts 連續更新、forward probe 期間抖 ~20 ticks 但永不掉出寬 band → staleness guard 改 **pre-submit dry-run**（`GUARD=1`，無 magic 閾值）。
+- **fetchOracle 加 forward==0 fail-loud**（剛建立未定價 oracle）。
+- **dual-review 修 3 真 bug**：(F1) shrink clamp 進 probed band（不對稱 band 防 out-of-band leg）+回歸測試；(F2) 非 2 次方 kmax 精確 probe cap；(F3) oracle.test 篩 BTC event 去 flaky。
+- **commits**：cab25e2 / 3c8c50b / cf84c92 / fc094f7 / 689e084 / c67b111 + review-fix。
+
 ## Recently Completed (2026-06-20) — pricing-engine 設計+計畫
 - **brainstorming 4 決策**：(1) band 判定走 **dry-run 探測**（非 SVI 複刻，符合 lessons「runtime gate 要實證」）；(2) 交付 = **CLI 函式模組** `scripts/pricing/`，mint.js import；(3) forward 來源 = **oracle 為主**（讀 `prices.forward`）+ PositionMinted event 為 sanity；(4) 目標 = **最大化合法寬度**。
 - **驗證 OracleSVI schema（live testnet）**：`prices.{forward,spot}`、`svi.{a,b,m…}`、`settlement_price`(null=未結算)、`expiry`、`timestamp`；`tick_size`/`min_strike` 在 `registry::OracleCreated` event 不在 object content。

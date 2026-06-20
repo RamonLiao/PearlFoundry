@@ -35,3 +35,7 @@
   4. plan/spec A2 假設「oracle ts 只在 15-min rolling 變，可用 ts-equality + drift 閾值 gate」→ 真相 ts 連續每幾秒更新、forward probe 期間抖 ~20 ticks，但 band 寬 6000 ticks 永不掉出 → 任何 drift 閾值誤判。改 pre-submit dry-run（無閾值，權威）。
 - **正確做法**：對外部協議整合，plan 的每個「runtime 行為假設」都標 PROPOSED，實作第一步先用一次性 dry-run 校準（成功/各 abort code/gas），再依實證寫。嚴格 abort whitelist（只收 1/7）讓非預期 abort（grid-misalign code 2、EInvalidRange）立刻 loud-fail 而非被吞成 band 邊界——這正是當場抓到 1-leg 假設錯的原因。
 - **校準 SOP 驗證了**：`parseAbortCode` regex 對真實 SDK error string（`MoveAbort(..., N) in command M`）驗過，N 可超 u64（EInvalidRange 巨大 code）用 BigInt 解析。
+
+## 2026-06-20 — dual-review 共享 /tmp 路徑會被並行 session 覆寫 → codex 審到別人的 diff 回幻覺
+- **錯誤 pattern**：`git diff > /tmp/rev.diff` 用固定檔名。另一並行 session 也寫 `/tmp/rev.diff`，我的 pricing diff 被覆寫成別專案的 backend/RECALL 內容。codex review.sh 讀到該內容 → 回完全無關的幻覺 finding（`backend/src/memory.ts`、`recall.report.v1`）。
+- **正確做法**：review diff 一律寫**唯一檔名**（`/tmp/xxx_$$.diff` 帶 PID）。codex 回的 finding 若引用 diff 裡不存在的檔案/符號 = 立即懷疑輸入被汙染或幻覺，先 `head` 驗 diff 內容再重跑，不要照單全收。重跑後 codex F1–F3 全為真 bug，證明 wrapper 本身可用、問題在輸入。
