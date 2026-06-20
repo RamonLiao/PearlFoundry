@@ -36,8 +36,12 @@ export async function fetchOracle(client, oracleId, meta = {}) {
   if (!f) throw new Error(`oracle ${oracleId} has no content`);
   if (f.settlement_price != null) throw new Error(`oracle ${oracleId} already settled (price=${f.settlement_price})`);
   const prices = f.prices.fields;
+  const forward = BigInt(prices.forward);
+  // Freshly-created oracles roll in with forward=0 until first priced — minting against
+  // them would derive a nonsensical ladder, so reject loudly rather than silently degrade.
+  if (forward === 0n) throw new Error(`oracle ${oracleId} not yet priced (forward=0)`);
   return {
-    forward: BigInt(prices.forward),
+    forward,
     spot: BigInt(prices.spot),
     tickSize: meta.tickSize ?? 1_000_000_000n,
     minStrike: meta.minStrike ?? 50_000_000_000_000n,
