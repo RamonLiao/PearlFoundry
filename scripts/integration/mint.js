@@ -14,9 +14,10 @@ const EXPIRY_TOTAL = Number(E.EXPIRY_TOTAL || '1');
 if (!MGR || !ORACLE || !DUSDC_COIN || !E.LOWER) { console.error('missing env'); process.exit(1); }
 
 const client = new SuiClient({ url: RPC });
+
 const tx = new Transaction();
 tx.setSender(ADDR);
-tx.setGasBudget(600_000_000);
+tx.setGasBudget(2_000_000_000); // 2 SUI: 16-leg ladder ≈0.55 SUI; gas scales steeply per leg
 const bytes = s => [...new TextEncoder().encode(s)];
 
 const [pay] = tx.splitCoins(tx.object(DUSDC_COIN), [NOTIONAL]);
@@ -44,6 +45,20 @@ tx.moveCall({
 
 const txBytes = await tx.build({ client });
 const b64 = Buffer.from(txBytes).toString('base64');
+
+// Staleness guard (A2): the ladder is compute-then-mint-immediately. The oracle reprices
+// continuously and the forward jitters tens of ticks during compute, but the Predict band is
+// ~6000 ticks wide — so a magic drift threshold mis-fires. The authoritative, threshold-free
+// check is to dry-run the EXACT tx we're about to sign and refuse to emit bytes unless it's
+// `success`. Set GUARD=1 (or it auto-runs in dryrun mode) before signing a real submission.
+if (mode === 'bytes' && E.GUARD) {
+  const g = await client.dryRunTransactionBlock({ transactionBlock: b64 });
+  if (g.effects.status.status !== 'success') {
+    console.error(`stale/invalid: pre-submit dry-run failed: ${g.effects.status.error}`);
+    process.exit(1);
+  }
+  console.error('[ok] pre-submit dry-run success — ladder still band-valid');
+}
 
 if (mode === 'bytes') {
   console.log(b64);
