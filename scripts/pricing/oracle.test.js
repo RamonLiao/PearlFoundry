@@ -6,12 +6,15 @@ import { resolveOracle, fetchOracle, PREDICT_PKG } from './oracle.js';
 const client = new SuiClient({ url: 'https://fullnode.testnet.sui.io:443' });
 
 test('resolveOracle finds a live BTC oracle and fetchOracle reads forward', async () => {
-  // pick the most recent BTC oracle's expiry from events, then resolve it back
+  // pick the most recent BTC oracle's expiry from events, then resolve it back. Must filter by
+  // asset — the newest registry event may be for another underlying, which would resolve-fail.
   const ev = await client.queryEvents({
     query: { MoveEventModule: { package: PREDICT_PKG, module: 'registry' } },
-    limit: 1, order: 'descending',
+    limit: 20, order: 'descending',
   });
-  const expiry = BigInt(ev.data[0].parsedJson.expiry);
+  const btc = ev.data.find(e => e.parsedJson.underlying_asset === 'BTC');
+  assert.ok(btc, 'a live BTC oracle event exists');
+  const expiry = BigInt(btc.parsedJson.expiry);
   const { oracleId, tickSize, minStrike } = await resolveOracle(client, 'BTC', expiry);
   assert.match(oracleId, /^0x[0-9a-f]{64}$/);
   assert.ok(tickSize > 0n, 'tickSize positive');

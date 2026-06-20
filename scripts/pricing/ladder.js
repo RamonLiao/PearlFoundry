@@ -28,6 +28,10 @@ export function buildLadder({ forward, tickSize, minStrike, loBound, hiBound, st
   let lower = snapToCenterGrid(lo, center, step, 'lower');
   let upper = snapToCenterGrid(hi, center, step, 'upper');
   if (upper < lower) { upper = lower = center; } // probe found nothing → single center leg
+  // Remember the probed band edges — the symmetric shrink below must never push a strike past
+  // them, or the ladder leaves the band and fails to mint (an asymmetric band, e.g. exact edge
+  // one side + capped the other, would otherwise produce an out-of-band leg).
+  const bandLower = lower, bandUpper = upper;
   let legs = Number((upper - lower) / step) + 1;
   if (legs > maxLegs) {
     const below = BigInt(Math.floor((maxLegs - 1) / 2));
@@ -35,6 +39,8 @@ export function buildLadder({ forward, tickSize, minStrike, loBound, hiBound, st
     lower = center - below * step;
     upper = center + above * step;
     if (lower < minStrike) lower = snapToCenterGrid(minStrike, center, step, 'lower');
+    if (lower < bandLower) lower = bandLower; // clamp into the probed band (asymmetric-safe)
+    if (upper > bandUpper) upper = bandUpper;
     legs = Number((upper - lower) / step) + 1;
   }
   return { lower, upper, step, legs, center };

@@ -36,6 +36,18 @@ test('minStrike clamps lower bound', () => {
   assert.ok(r.lower >= 50_000_000_000_000n);
 });
 
+test('asymmetric band: shrink clamps into probed bounds, never emits out-of-band leg', () => {
+  const center = 62_500_000_000_000n;
+  // band wide below, but exact (narrow) edge 3 ticks above the center
+  const hiBound = center + 3n * T;
+  const loBound = center - 100n * T;
+  const r = buildLadder({ forward: center, tickSize: T, minStrike: 0n,
+    loBound, hiBound, maxLegs: 8 });
+  assert.ok(r.upper <= hiBound, 'upper never exceeds probed hiBound');
+  assert.ok(r.lower >= loBound, 'lower never below probed loBound');
+  assert.equal(r.upper, hiBound); // clamped to the narrow side
+});
+
 test('MAX_LEGS shrink stays forward-centered and symmetric', () => {
   const center = 62_500_000_000_000n;
   const r = buildLadder({ forward: center, tickSize: T, minStrike: 0n,

@@ -84,13 +84,20 @@ export function makeIsMintable(ctx, forward) {
 export async function findBoundary(isMintable, forward, dir, step, { kmax = 128n, floor = 0n } = {}) {
   const at = k => forward + BigInt(dir) * k * step;
   if (await isMintable(forward) !== 'ok') throw new Error(`forward ${forward} itself not mintable — band/oracle anomaly`);
-  let lastOk = 0n, k = 1n, firstFail = 0n;
-  while (k <= kmax) {
-    const s = at(k);
-    if (s < floor) { firstFail = k; break; }
-    if (await isMintable(s) === 'ok') { lastOk = k; k *= 2n; } else { firstFail = k; break; }
+  // Exponential reach-out, but always probe kmax exactly when doubling would overshoot it, so a
+  // non-power-of-2 kmax still reports the true usable cap (not the last power of 2 below it).
+  let lastOk = 0n, firstFail = 0n, k = 1n;
+  for (;;) {
+    const probe = k < kmax ? k : kmax;
+    const s = at(probe);
+    if (s < floor) { firstFail = probe; break; }
+    if (await isMintable(s) === 'ok') {
+      lastOk = probe;
+      if (probe === kmax) break; // reached the cap, still mintable
+      k *= 2n;
+    } else { firstFail = probe; break; }
   }
-  if (firstFail === 0n) return { strike: at(lastOk), capped: true }; // never failed up to kmax
+  if (firstFail === 0n) return { strike: at(lastOk), capped: true }; // mintable all the way to kmax
   if (lastOk === 0n) return { strike: forward, capped: false };      // 1 step out already fails
   let lo = lastOk, hi = firstFail;
   while (hi - lo > 1n) {
