@@ -1,5 +1,32 @@
 # move-notes.md
 
+## 2026-06-19 — 結算模式決策（實測 gas + 修正 keeper 框架）
+
+### 實測 gas（testnet 真實上鏈）
+- **mint PTB2**：computation 154.7M + net storage 24.6M = **+179.3M MIST ≈ 0.179 SUI**（storage 主導，分配 note+position）。由 holder mint 時自付，與結算模式無關。
+- **claim**：computation 1.0M(floor) + net storage −8.2M = **−7.19M MIST ≈ −0.0072 SUI（gas-negative，倒賺 rebate）**。刪 note+2 dynamic-field → storage rebate > 成本。注意此為 3-leg 單 expiry；多 expiry computation 會線性升，但仍 modest。
+
+### 🔑 修正：keeper「代執行 claim」結構性不可能
+- `claim_begin(note: NoteBase<RangeAccrual>, ...)` 吃 **by-value owned soulbound note**（AddressOwner=holder）。
+- Sui 規則：owned object 只能由 owner 簽名的交易當 input。第三方 keeper 連把 note 放進 PTB input 都做不到 → **keeper 用自己地址代跑 claim 不可能**（與既有「note soulbound → keeper 碰不到」一致）。前一輪把 keeper 講成「自動代執行」是錯誤框架。
+- claim gas-negative 是真，但「誰能執行」被 object ownership 鎖死，不是 gas 問題。
+
+### 定案：結算模式 = 兩者並存（holder 永遠是 signer，差別只在 gas 誰付）
+- **路徑 A 自助 claim**：holder 簽 + holder 付 gas（gas-negative 倒賺）。現況已支援。
+- **路徑 B Sponsored tx**：holder 簽（提供 owned note + sender 授權）+ **項目方 gas station 第二簽並提供 gas coin**。holder 免持 SUI。這才是 mainnet「項目方幫忙」的正解。
+- **合約零改動**（claim 已 `public fun` + by-value note，天然支援兩路徑）。
+
+### Mainnet 實踐清單（全 off-chain）
+1. Indexer：監看 `predict::oracle::OracleActivated` + settlement_price 非 null → 標記可結算 → 推播 holder。
+2. Gas station 服務（路徑 B）：後端持 sponsor SUI + gas coin pool，對 holder 簽好的 claim txBytes 做 sponsor 簽名（Mysten reference gas-station / Shinami / Enoki）。
+3. 前端：兩顆按鈕（自付 gas / 免 gas sponsored）。
+4. MIN_NOTIONAL 與結算模式**脫鉤**（不存在代付且代執行）→ 純擋 dust/spam。
+
+### MIN_NOTIONAL 決策
+- 實測 keeper 成本趨近零，原計畫 50–100 dUSDC 為**未實測臆測**，已推翻。
+- **hackathon：維持 default 1 dUSDC**（1_000_000，沒人會洗 testnet 榜，零治理動作）。
+- **mainnet 前：`set_min_notional(5_000_000)` 拉到 5 dUSDC**（擋 leaderboard spam，留 SUI 波動 margin）。
+
 ## 2026-06-16 — Architecture design (sui-architect)
 
 **目的**：把 BUSINESS_SPEC/IDEA_REPORT 落地成 Move 架構。產出 spec：
@@ -152,3 +179,38 @@
 ### Task 8 結論
 mint(2-PTB) → settle → claim 全 happy-path + 5 Monkey abort 在 testnet 驗證通過。合約金流、fee、soulbound、note 生命週期、atomic settle+withdraw 全部正確。
 整合腳本：`scripts/integration/{config,mint,claim}.js`（@mysten/sui v1.36，oracle/mgr/note 走 env 不 hardcode）。
+
+---
+
+## 2026-06-20 — Pricing Engine（off-chain strike ladder，`scripts/pricing/`）
+
+**目的**：自動從 live oracle forward 推導合法 range-accrual strike ladder（每 leg 過 `predict::mint` band），取代 `mint.js` 手動 `LOWER/UPPER/STEP`。
+
+**模組**：`ladder.js`（純函式 forward-centered max-width ladder）、`oracle.js`（resolve+fetch forward+event sanity）、`probe.js`（dry-run band 探測）、`price.js`（CLI `computeLadder`，mint.js import）。全 TDD，pure 9 tests + live probe 2 tests 全綠。
+
+### 與 plan 的重大偏離（皆來自 live 實證，非紙上）
+
+1. **1-leg 探測不可行 → 2-leg 微 ladder**：`strategy_range_accrual::legs_per_expiry` 有 `assert!(lower < upper)`，lower==upper 直接 abort（EInvalidRange，巨大 code，發生在我們合約還沒到 predict band）。改用 2-leg 微 ladder：被測 strike 當外側、partner 取「往 forward 靠一格」。band per-leg 且單調 → partner 一定先過，tx 成敗 = 被測 strike 的 band 成敗。
+
+2. **boundary 改 maxLegs-capped**：testnet band 寬 ~6000-8000 ticks（±$6-8k on $63k），遠超 MAX_LEGS。探到上千 ticks 既慢又脆（exponential search invariant 破）。改成只探 `maxLegs` 步：band 更寬回傳 cap 點（MAX_LEGS 收縮綁定）、更窄精確找邊。`findBoundary` 回 `{strike, capped}`。
+
+3. **off-chain maxLegs 預設 = 16（非 128）**：實測 gas 隨 leg 陡升（storage 主導）：**4 legs 0.03 / 8 legs 0.17 / 16 legs 0.5 / 32 legs 1.6 / 128 legs >10 SUI**。錢包僅 ~22 SUI 連 128-leg 都 mint 不起。**單 PTB mint 的真實瓶頸是 gas，不是 band**。Move `MAX_LEGS=128` 維持為 DoS 硬上限。`mint.js` gasBudget 拉到 2 SUI。
+
+4. **staleness guard 改 pre-submit dry-run（非 forward-drift 閾值）**：oracle timestamp **連續每幾秒更新**（非 15-min rolling），且 forward 在 ~12s probe 期間自然抖動 ~20 ticks。但 band 寬 6000 ticks，20-tick 抖動永不掉出 band → 任何 magic drift 閾值都誤判。最正確、無閾值做法 = 簽署前對「即將送出那筆 tx」做一次 dry-run，非 success 才 abort（`GUARD=1` bytes 模式）。符合「dry-run 是權威」哲學。
+
+5. **`fetchOracle` 加 forward==0 fail-loud**：剛建立的 oracle（15-min rolling）forward=0 未定價，mint 會推出無意義 ladder → 直接 throw（Rule 12）。
+
+### Off-chain abort code 對照（dry-run 分類用）
+- code 1（`pricing_config`）/ code 7（`assert_mintable_ask`）= band rejection（whitelist，回 `'band'`）。
+- code 2（`oracle_config::assert_valid_strike`）= strike 不在 tick grid（**非** band；probe 前須 snap forward）。
+- EInvalidRange 巨大 code（`strategy_range_accrual`）= lower>=upper（我方合約）。
+- 以上非 1/7 一律 throw + 印 raw effects，不誤判成 band。
+
+### 端到端驗證（live testnet）
+`price.js`（16-leg ladder）→ `mint.js dryrun` = **success，net gas 0.505 SUI**。`bytes`+`GUARD=1` pre-submit dry-run 通過。
+
+### 操作型 monkey case（手動跑，無自動化 code）
+- 對剛建立未定價 oracle（forward=0）→ `fetchOracle` throw。
+- 已結算 oracle（settlement_price != null）→ `fetchOracle` throw。
+- 遠未來 EXPIRY → `resolveOracle` throw 並列出 recent expiries。
+- notional=0 / 不足 → probe forward 即 throw（非 1/7 abort），不誤判成 band。
