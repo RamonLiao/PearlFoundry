@@ -1,7 +1,9 @@
 # Progress — Structured Note Factory
 
 ## Current Task
-**pricing-engine 設計+計畫 ✅ 完成（2026-06-20，待實作）**：解 mint ask-price band → 自動產合法 strike ladder。決策：dry-run 探測（非 SVI 複刻）+ CLI 函式模組（`scripts/pricing/`）+ oracle 讀 forward / event sanity + 最大化合法寬度。spec `docs/superpowers/specs/2026-06-20-pricing-engine-design.md`、plan `docs/superpowers/plans/2026-06-20-pricing-engine.md`（5 tasks TDD）。sui-architect review 整合 A1–A4。**下一步：選執行方式（subagent-driven / inline）開始實作 Task 1–5。**
+**pricing-engine 實作 ✅ 完成（2026-06-20）**：Task 1–5 全綠，inline TDD。`scripts/pricing/{ladder,oracle,probe,price}.js` + 9 pure tests + 2 live probe tests 全過。端到端 `price.js`(16-leg)→`mint.js dryrun`=success，net gas **0.505 SUI**。4 個 plan 偏離全來自 live 實證（見 move-notes 2026-06-20 + lessons）：1-leg→2-leg 微 ladder、boundary maxLegs-capped、maxLegs 預設 16（gas 瓶頸非 band）、staleness guard 改 pre-submit dry-run。**下一步：選做 frontend 兩顆按鈕 / indexer / 其他 strategy。**
+
+（前一任務）**pricing-engine 設計+計畫 ✅ 完成（2026-06-20）**：spec `docs/superpowers/specs/2026-06-20-pricing-engine-design.md`、plan `docs/superpowers/plans/2026-06-20-pricing-engine.md`。
 
 （前一任務）**Task 8 testnet 整合 ✅ 完成**：mint(2-PTB)→settle→claim happy-path 真實上鏈，5 Monkey abort 全過，FeeVault 對帳 132758。結算模式定案=兩者並存；MIN_NOTIONAL hackathon 1 / mainnet 5。
 
@@ -21,7 +23,8 @@
 - [x] 設計決策：leg=N adjacent up-strike ladder、等權 sizing、claim 內 atomic settle+withdraw、最小 fee_vault+leaderboard、mint 2-PTB builder、roll/Defaulted 列 roadmap
 - [x] sui-architect review（C1 soulbound_transfer / C2 public-fun-非-entry / A1 leaderboard event-only / A2 Display V2 roadmap）
 - [ ] 後續：strategy_capped_upside、strategy_principal_protected、roll（shared-note 設計）、Defaulted 清算
-- [~] off-chain：**pricing-engine 設計+plan ✅（2026-06-20，待實作 Task 1–5）**；Walrus 上傳、indexer、settlement-keeper 仍待設計
+- [x] **pricing-engine 實作 ✅（2026-06-20）**：Task 1–5 全綠，live 驗證 0.505 SUI mint。
+- [~] off-chain 剩餘：Walrus 上傳、indexer、settlement-keeper、frontend 兩顆按鈕仍待設計
 
 ## Recently Completed (2026-06-19) — Task 8 testnet 整合
 - **mint(2-PTB)→settle→claim 全 happy-path 真實上鏈**（mint `13ikpdQK…`、claim `EveDmojuk…`）。獲利結算 payout 10894829、perf fee 102758、note deleted、position 歸零。
