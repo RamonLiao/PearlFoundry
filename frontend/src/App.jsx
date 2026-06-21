@@ -4,6 +4,7 @@ import { useCurrentAccount, useDAppKit } from '@mysten/dapp-kit-react';
 import { runMint } from './mint.js';
 import { EXPLORER } from './config.js';
 import MyNotes from './MyNotes.jsx';
+import Leaderboard from './Leaderboard.jsx';
 
 export default function App() {
   const account = useCurrentAccount();
@@ -36,6 +37,7 @@ export default function App() {
     <div style={{ maxWidth: 720, margin: '40px auto', fontFamily: 'system-ui' }}>
       <h1>Structured Note Factory</h1>
       <ConnectButton />
+      <Leaderboard account={account} />
       {account && (
         <>
           <p>Connected: {account.address}</p>

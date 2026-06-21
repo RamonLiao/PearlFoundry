@@ -16,6 +16,13 @@ export async function getNotes(issuer) {
   return j;
 }
 
+export async function getLeaderboard() {
+  const r = await fetch(`${API}/leaderboard`);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || 'failed to load leaderboard'); e.code = j.code; e.detail = j.detail; throw e; }
+  return Array.isArray(j) ? j : [];
+}
+
 export async function getOracle(asset, expiry) {
   const r = await fetch(`${API}/oracle?asset=${encodeURIComponent(asset)}&expiry=${encodeURIComponent(expiry)}`);
   const j = await r.json();
