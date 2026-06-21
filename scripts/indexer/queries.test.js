@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { openDb, ingestPage } from './db.js';
-import { leaderboard, listNotes, pendingSettle, feeStats } from './queries.js';
+import { openDb, ingestPage, markNotified } from './db.js';
+import { leaderboard, listNotes, pendingSettle, feeStats, pendingUnnotified } from './queries.js';
 
 function seed() {
   const db = openDb();
@@ -50,4 +50,15 @@ test('feeStats sums by kind', () => {
   const f = feeStats(seed());
   assert.equal(f.issuance, 30);
   assert.equal(f.perf, 50);
+});
+
+test('pendingUnnotified excludes already-notified notes', () => {
+  const db = seed();
+  assert.equal(pendingUnnotified(db, 600).length, 1); // 0xn3 matured (500<600), unsettled, not notified
+  markNotified(db, '0xn3', 600);
+  assert.equal(pendingUnnotified(db, 600).length, 0); // now suppressed by the JOIN
+});
+
+test('pendingUnnotified still excludes settled and not-yet-expired (same as pendingSettle)', () => {
+  assert.equal(pendingUnnotified(seed(), 400).length, 0); // 0xn3 expiry 500 not passed
 });

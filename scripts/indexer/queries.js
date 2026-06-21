@@ -36,3 +36,12 @@ export function feeStats(db) {
   for (const r of rows) { if (r.kind === 0) out.issuance = r.total; if (r.kind === 1) out.perf = r.total; }
   return out;
 }
+
+export function pendingUnnotified(db, nowMs) {
+  return db.prepare(`
+    SELECT n.* FROM notes n
+    LEFT JOIN settlements s USING(note_id)
+    LEFT JOIN notified x USING(note_id)
+    WHERE s.note_id IS NULL AND x.note_id IS NULL
+      AND CAST(n.expiry_ts_ms AS INTEGER) < @now`).all({ now: Number(nowMs) });
+}
