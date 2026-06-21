@@ -51,6 +51,45 @@ export async function fetchOracle(client, oracleId, meta = {}) {
   };
 }
 
+// Enumerate registry::OracleCreated, collect future BTC expiries in ascending order,
+// return the smallest one past (nowMs + minBufferMs) whose oracle is currently priced.
+export async function pickLiveExpiry(client, asset, { nowMs, minBufferMs = 20 * 60 * 1000 } = {}) {
+  const now = nowMs ?? Date.now();
+  const cutoff = BigInt(now + minBufferMs);
+
+  // Collect candidate expiries (deduplicated) from descending event stream
+  const byExpiry = new Map(); // expiry(string) -> { oracleId, tickSize, minStrike }
+  let cursor = null;
+  for (let page = 0; page < 10; page++) {
+    const r = await client.queryEvents({
+      query: { MoveEventModule: { package: PREDICT_PKG, module: 'registry' } },
+      limit: 50, order: 'descending', cursor,
+    });
+    for (const e of r.data) {
+      const j = e.parsedJson;
+      if (j.underlying_asset !== asset) continue;
+      if (BigInt(j.expiry) <= cutoff) continue;
+      if (!byExpiry.has(j.expiry)) {
+        byExpiry.set(j.expiry, { oracleId: j.oracle_id, tickSize: BigInt(j.tick_size), minStrike: BigInt(j.min_strike) });
+      }
+    }
+    if (!r.hasNextPage) break;
+    cursor = r.nextCursor;
+  }
+
+  // Sort ascending (nearest first)
+  const candidates = [...byExpiry.entries()].sort((a, b) => (BigInt(a[0]) < BigInt(b[0]) ? -1 : 1));
+  for (const [expiry, { oracleId, tickSize, minStrike }] of candidates) {
+    try {
+      await fetchOracle(client, oracleId, { tickSize, minStrike });
+      return expiry;
+    } catch {
+      // unpriced or settled — try next
+    }
+  }
+  throw new Error(`no live priced ${asset} expiry found (checked ${candidates.length} candidates)`);
+}
+
 // Order-of-magnitude sanity only — PositionMinted is Predict-global (other strategies'
 // strikes, including far-OTM). Never authoritative; dry-run probing is.
 export async function sanityBand(client, asset) {

@@ -31,3 +31,63 @@ test('unknown path returns 404', async () => {
     assert.equal((await fetch(`${base}/nope`)).status, 404);
   });
 });
+
+// --- tx routes (Task 2) ---
+
+function callRoute(server, method, path, body) {
+  return new Promise((resolve) => {
+    server.listen(0, () => {
+      const { port } = server.address();
+      fetch(`http://127.0.0.1:${port}${path}`, {
+        method, headers: { 'content-type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      }).then(async (r) => { const j = await r.json(); server.close(); resolve({ status: r.status, j }); });
+    });
+  });
+}
+
+const fakeDb = { prepare: () => ({ all: () => [], get: () => ({}) }) };
+const fakeTxdeps = {
+  buildCreateManagerTx: ({ sender }) => ({ serialize: () => `CM:${sender}` }),
+  computeLadder: async ({ sender, mgr }) => ({ lower: 1n, upper: 2n, step: 1n, oracleId: '0xorc' }),
+  buildMintTx: ({ sender, mgr }) => ({ serialize: () => `MINT:${sender}:${mgr}` }),
+  buildClaimTx: ({ sender, note }) => ({ serialize: () => `CLAIM:${sender}:${note}` }),
+  pickDusdcCoin: async () => ({ coinId: '0xcoin', total: 1000n }),
+  pickLiveExpiry: async () => '1750000000',
+};
+
+test('POST /create-manager-tx returns serialized tx', async () => {
+  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/create-manager-tx', { sender: '0xS' });
+  assert.equal(status, 200);
+  assert.equal(j.tx, 'CM:0xS');
+});
+
+test('POST /create-manager-tx 400 on missing sender', async () => {
+  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/create-manager-tx', {});
+  assert.equal(status, 400);
+  assert.equal(j.code, 'BAD_PARAMS');
+});
+
+test('POST /quote returns ladder + tx', async () => {
+  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
+  assert.equal(status, 200);
+  assert.equal(j.oracleId, '0xorc');
+  assert.equal(j.tx, 'MINT:0xS:0xM');
+});
+
+test('POST /quote omits expiry — auto-picks via pickLiveExpiry', async () => {
+  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM' });
+  assert.equal(status, 200);
+  assert.equal(j.oracleId, '0xorc');
+  assert.equal(j.expiry, '1750000000');
+});
+
+test('tx route 503 when no client wired', async () => {
+  const srv = createServer(fakeDb);
+  const { status } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
+  assert.equal(status, 503);
+});

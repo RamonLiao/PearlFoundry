@@ -10,11 +10,12 @@ import { buildLadder } from './ladder.js';
 // maxLegs default 16 (~0.55 SUI mint gas): gas scales steeply per leg (storage-dominated;
 // 32 legs ≈1.6 SUI, 128 >10 SUI). Move MAX_LEGS=128 is the DoS hard cap; the single-PTB mint's
 // real binding constraint is gas, not the band (which is ~6000+ ticks wide on testnet).
-export async function computeLadder({ client, asset, expiry, notional, mgr, dusdcCoin, stepMult = 1, maxLegs = 16 }) {
+export async function computeLadder({ client, asset, expiry, notional, mgr, dusdcCoin,
+                                      sender = ADDR, stepMult = 1, maxLegs = 16 }) {
   const { oracleId, tickSize, minStrike } = await resolveOracle(client, asset, BigInt(expiry));
   const o = await fetchOracle(client, oracleId, { tickSize, minStrike });
   const step = o.tickSize * BigInt(stepMult);
-  const ctx = { client, sender: ADDR, mgr, cfg: CFG, vault: VAULT, predict: PREDICT,
+  const ctx = { client, sender, mgr, cfg: CFG, vault: VAULT, predict: PREDICT,
     dusdc: DUSDC, dusdcCoin, clock: CLOCK, oracleId, notional: BigInt(notional), asset, tickSize: o.tickSize };
 
   const { loBound, hiBound, loCapped, hiCapped } = await probeBounds(ctx, o.forward, step, { maxLegs });

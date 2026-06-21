@@ -1,0 +1,24 @@
+import { API } from './config.js';
+
+export async function postTx(path, body) {
+  const r = await fetch(`${API}${path}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const j = await r.json();
+  if (!r.ok) { const e = new Error(j.error || 'request failed'); e.code = j.code; e.detail = j.detail; throw e; }
+  return j;
+}
+
+export async function getNotes(issuer) {
+  const r = await fetch(`${API}/notes?issuer=${issuer}`);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || 'failed to load notes'); e.code = j.code; e.detail = j.detail; throw e; }
+  return j;
+}
+
+export async function getOracle(asset, expiry) {
+  const r = await fetch(`${API}/oracle?asset=${encodeURIComponent(asset)}&expiry=${encodeURIComponent(expiry)}`);
+  const j = await r.json();
+  if (!r.ok) { const e = new Error(j.error || 'oracle lookup failed'); e.code = j.code; throw e; }
+  return j.oracleId;
+}
