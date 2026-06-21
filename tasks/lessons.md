@@ -50,3 +50,12 @@
 - **情境**：indexer ingestion 初選 GraphQL（理由：JSON-RPC「已棄用」這個未驗證文件假設）。
 - **真相（review 實證）**：GraphQL `events` forward cursor backwards-oriented、跨輪詢無法可靠續傳 + 仍 beta schema 不穩 → poller 核心機制破功。被 signaled 棄用的 JSON-RPC `suix_queryEvents` 反而有原生可靠 `nextCursor {txDigest,eventSeq}`（同時就是 store 的 dedup envelope）。gRPC 正式接班但 `ListAuthenticatedEvents` 對普通 `event::emit` 涵蓋未證實。
 - **正確做法**：3 層架構讓 ingest 可換 → 現在選「核心機制最可靠」的（JSON-RPC），把「戰略正確但未證實」的（gRPC）列 roadmap。別為「未來相容」賭上當下的核心可靠度。
+
+## 2026-06-21 — SDK 大版本漂移：plan 寫的前端 API 可能已整包改名，實作前先撈 installed 型別
+- **錯誤 pattern**：frontend plan（brainstorm+writing-plans 時）照 `@mysten/dapp-kit` 寫 provider 樹 + `useSignAndExecuteTransaction`/`useSuiClient` hooks。實際 install 的是繼任套件 `@mysten/dapp-kit-react` 2.x：**整包改名**、provider 改 `createDAppKit`+`DAppKitProvider`、**沒有那兩個 hook**（簽署改走 `dAppKit.signAndExecuteTransaction({transaction})` singleton），client 變 gRPC（`SuiGrpcClient`），交易結果是 `{$kind,Transaction,FailedTransaction}` discriminated union 帶 **gRPC `effects.changedObjects`（非 JSON-RPC `objectChanges`）**。
+- **正確做法**：前端任務 dispatch 前先 (1) 跑 sui-frontend skill 確認當前套件名/API，(2) 直接 grep `node_modules/<pkg>/dist/*.d.mts` 撈真實 exports/簽名（本次靠它確定 sign 結果 union + `idOperation==='Created'`/`outputState==='ObjectWrite'` 字串）。plan 的前端 code 一律當「intent 草稿」不是「verbatim」；controller 在 dispatch prompt 裡明寫「brief 的 dapp-kit code 是 stale，用這組實測 API」，避免每個 subagent 重踩。
+- **連帶校準**：`predict::create_manager` dry-run 確認**只建 1 個物件**（Shared PredictManager）→ 前端 positional MGR 抽取（`find(Created)`）無歧義，免做 type-assert 硬化。再次印證「runtime 假設一律 dry-run/型別實證」。
+
+## 2026-06-21 — SDD orchestration：plan 的紙上前端 code 撞 SDK 漂移時，controller 要先校準再分派
+- 8-task SDD 跑下來，前端 4 個 task（scaffold/mint/claim/auto-expiry）的 plan code 全因 dapp-kit 改版失準。**有效做法**：controller 在 Task 3 完成後，先自己撈出 2.x 的 sign API + 結果型別 + gRPC effects 形狀，寫進 ledger 的「API divergence note」，後續每個 dispatch 都帶這段 override → subagent 不用各自重新發現、也不會各寫一套。
+- **headless 先行校準**：能 dry-run 的（create_manager 物件數、live expiry 枚舉、/quote 端到端 fail-loud）controller 先跑掉，把「只能瀏覽器錢包做的」縮到最小交給 human。Task 6（live round-trip）= 純人工，其餘全自動化驗證。
