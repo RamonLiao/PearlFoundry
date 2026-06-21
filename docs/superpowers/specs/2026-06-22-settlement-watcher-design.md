@@ -1,7 +1,7 @@
 # Settlement Watcher — Design
 
 Date: 2026-06-22
-Status: APPROVED (brainstorming)
+Status: APPROVED (brainstorming) + sui-indexer & sui-architect skill review integrated
 
 ## Goal
 
@@ -43,68 +43,105 @@ keeper.js (CLI)
 
 **`scripts/indexer/notify.js`** — pure notification dispatch.
 - `notifyMatured({ note, webhookUrl, fetch, log })`
-  - Always emits a structured log line.
+  - Always emits a structured log line **synchronously first** (see Key Decision 1).
   - If `webhookUrl` set: best-effort `POST` JSON `{ noteId, owner, expiry_ts_ms, strategy, notional }`
-    with a timeout. Failures are caught and logged; they never throw to the caller.
+    where `owner := note.issuer` (the schema column is `issuer`; for soulbound mint-to-self
+    owner == issuer). POST uses a **webhook-local** `AbortSignal.timeout(3000)` — distinct from
+    the loop `signal`, so a slow webhook self-aborts and an aborting loop doesn't truncate an
+    in-flight POST mid-decision. Failures are caught and logged; they never throw to the caller.
+  - Payload fields (`strategy`, `notional`, …) are **untrusted chain-derived data** (an attacker
+    can mint a note with adversarial `strategy` bytes); downstream webhook consumers must treat
+    them as such. We do not reflect them into the URL — no SSRF surface here.
 - Dependencies `fetch` and `log` are injected for testability.
 
 **`scripts/indexer/watcher.js`** — detection loop.
 - `runWatcher({ db, nowFn = Date.now, pollMs = 3000, webhookUrl, fireBacklog = false, signal, log, fetch })`
-  - **Cold-start seed (once, before the loop):** if `!fireBacklog`, `seedNotified(db,
-    pendingSettle(db, nowFn()).map(r => r.note_id), nowFn())` — silently mark the current
-    backlog as handled so it never fires. If `fireBacklog`, skip seeding.
+  - **Cold-start boundary (once, before the loop):** establish a persistent `seed_cutoff_ts`.
+    On the first-ever run, write `seed_cutoff_ts = nowFn()` into the `meta` table; on restart,
+    read the existing value (do **not** reset it). This replaces snapshot-seeding — it is
+    order-independent and immune to the poller race (a note the poller ingests microseconds
+    after start is judged by its own `expiry_ts_ms`, not by whether it happened to be in a
+    start-time snapshot). `--fire-backlog` ignores the cutoff entirely.
   - Loop until `signal.aborted`:
-    1. `rows = pendingSettle(db, nowFn())`
-    2. `fresh = rows.filter(r => !isNotified(db, r.note_id))`
-    3. For each `fresh` note: `markNotified(db, note_id, nowFn())` **then** `notifyMatured(...)`.
+    1. `rows = pendingUnnotified(db, nowFn())` — matured, unsettled, not-yet-notified, in one SQL JOIN.
+    2. `fresh = fireBacklog ? rows : rows.filter(r => Number(r.expiry_ts_ms) >= seedCutoff)`
+       — notes matured **before** the cutoff are backlog: silently skip (never marked, but the
+       cutoff predicate keeps them out of `fresh` every poll, so no per-row state needed).
+    3. For each `fresh` note: `notifyMatured(...)` (emits the durable log) **then**
+       `markNotified(db, note_id, nowFn())`. Log-before-mark: a crash between the two re-fires
+       the log on restart (at-least-once log) rather than permanently suppressing a never-logged note.
     4. `sleep(pollMs, signal)`.
-  - Seeding lives in `runWatcher` (not the CLI) so both `watcher.js` and `keeper.js` get
-    identical cold-start behavior; the `--fire-backlog` flag maps to `fireBacklog`.
+  - The cutoff logic lives in `runWatcher` (not the CLI) so both `watcher.js` and `keeper.js`
+    get identical behavior; the `--fire-backlog` flag maps to `fireBacklog`.
   - Same fail-counter / backoff discipline as `runPoller` (`maxFails`, exponential backoff,
     abort-aware sleep) so a transient error doesn't kill the daemon and a persistent one
     fails loud.
+  - **Effective poll interval** is `pollMs` + worst-case poller `drainOnce` time: better-sqlite3
+    is synchronous and shares the event-loop thread with the poller, so a long multi-page drain
+    delays the next watcher tick. Acceptable; documented so no one adds spurious `async` db wrappers.
 - CLI entry: `node watcher.js <dbPath>` (watcher-only, assumes ingest runs elsewhere).
 
 **`scripts/indexer/keeper.js`** — combined CLI.
 - Opens one db, builds one `AbortController`, starts `runPoller` and `runWatcher`
   concurrently, wires `SIGINT`/`SIGTERM` → `abort()`.
+- **Supervision contract (fail-loud, Rule 12):** `Promise.race([poller, watcher])` — if **either**
+  loop throws (e.g. poller hits `maxFails`), keeper calls `abort()` on both and exits non-zero.
+  A dead poller must not leave the watcher silently polling a stale db.
 - `node keeper.js <dbPath> [--fire-backlog]` — maps `--fire-backlog` to `runWatcher`'s
-  `fireBacklog`. Cold-start seeding itself is owned by `runWatcher`, not the CLI.
+  `fireBacklog`. Cutoff/dedup logic itself is owned by `runWatcher`, not the CLI.
 
 ### DB changes (`db.js`)
 
-- New table:
+- New tables:
   ```sql
   CREATE TABLE IF NOT EXISTS notified (
     note_id     TEXT PRIMARY KEY,
     notified_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS meta (        -- generic kv; first use: seed_cutoff_ts
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
   ```
 - Helpers:
   - `isNotified(db, noteId) -> boolean`
   - `markNotified(db, noteId, ts)`
-  - `seedNotified(db, noteIds, ts)` — bulk insert-or-ignore, used by cold-start seeding.
+  - `getOrInitMeta(db, key, initFn) -> string` — read `key`, or insert `initFn()` once and return it
+    (used for the persistent `seed_cutoff_ts`; insert-or-ignore keeps it stable across restarts).
+- New query in `queries.js`:
+  - `pendingUnnotified(db, nowMs)` — `pendingSettle`'s body plus `LEFT JOIN notified x USING(note_id)
+    WHERE x.note_id IS NULL`. Existing `pendingSettle` (and the `/pending-settle` route) is left
+    unchanged. Replaces the N+1 `isNotified` JS loop with one JOIN.
 
 ## Key Decisions
 
-1. **Log is source of truth; webhook is best-effort.** The log line is emitted and the note
-   is marked notified regardless of webhook outcome. Webhook failures are logged but never
-   retried and never block ingest. Rationale: a down/slow webhook endpoint must not (a) wedge
-   settlement detection, nor (b) re-fire every poll forever (spam). The operator-visible log
-   is the durable record; the webhook is a convenience.
+1. **Log is source of truth; webhook is best-effort — log emitted BEFORE mark.** The structured
+   log line is emitted synchronously *first*, then the note is marked notified, then the webhook
+   POST is attempted best-effort. Ordering matters: marking before logging would let a crash
+   between the two permanently suppress a note whose log never emitted. Log-before-mark makes the
+   durable record actually durable (a crash re-fires the log on restart — at-least-once log,
+   cheap to dedup downstream — rather than at-most-once-then-dropped). Webhook failures are logged
+   but never retried and never block ingest: a down/slow endpoint must not (a) wedge settlement
+   detection, nor (b) re-fire every poll forever (spam).
 
 2. **Persistent dedup table.** Notified state lives in sqlite (`notified`), not memory, so a
    restart does not re-notify already-handled notes and the webhook stays idempotent.
 
-3. **Cold-start silent seed.** On first run (or whenever a pending note has no `notified` row),
-   default behavior treats the **current** backlog of already-matured notes as already handled:
-   `runWatcher` seeds all current `pendingSettle` ids into `notified` **without firing**, then
-   only fires on genuinely new maturities. `--fire-backlog` disables seeding (fire the
-   historical backlog) when an operator explicitly wants catch-up notifications.
+3. **Cold-start timestamp boundary (not snapshot-seed).** A persistent `seed_cutoff_ts` (written
+   once on first-ever run, reused across restarts) defines "backlog": any pending note whose
+   `expiry_ts_ms < seed_cutoff_ts` is silently skipped, everything maturing at/after the cutoff
+   fires. This replaces an earlier snapshot-seed design that **raced `runPoller`** — a note the
+   poller ingested microseconds after process start could land in the start-time snapshot and be
+   suppressed forever. The cutoff is a pure predicate on each note's own `expiry_ts_ms`, so it is
+   order-independent and immune to ingest timing. `--fire-backlog` ignores the cutoff (fire history).
 
-4. **Local-clock maturity.** `pendingSettle` compares `Date.now()` to `expiry_ts_ms`. Maturity
-   detection is approximate to the daemon's clock; acceptable because this is a notification
-   trigger, not a money/authorization decision. `nowFn` is injectable for deterministic tests.
+4. **Local-clock maturity, trailing finality.** Maturity compares `nowFn()` to `expiry_ts_ms`;
+   approximate to the daemon's clock — acceptable for a notification trigger, not a money/auth
+   decision. `nowFn` is injectable for deterministic tests. Note the watcher's view is read from
+   indexed events, so "matured" means "matured per the last successful ingest" and trails chain
+   head by up to `pollMs` + RPC lag. A testnet reorg could roll back a settlement/mint already
+   ingested; blast radius is at most a spurious/premature *notification* (no funds), so this is
+   tolerated and documented rather than defended.
 
 ## Red Team (data-processing + outbound webhook; no signing / no funds)
 
@@ -112,26 +149,47 @@ keeper.js (CLI)
 |---|--------|---------|
 | 1 | Restart re-spams every prior note | Persistent `notified` table |
 | 2 | Webhook endpoint down/slow | Best-effort POST with timeout; catch + log; no retry-storm; never blocks loop |
-| 3 | Cold-start backlog floods webhook | First-run silent seed of current pending set; `--fire-backlog` to opt in |
-| 4 | Webhook URL SSRF / abuse | URL is operator env (`WATCHER_WEBHOOK_URL`), not user-controllable; documented trust boundary |
+| 3 | Cold-start backlog floods webhook | Persistent `seed_cutoff_ts` boundary (order-independent, no poller race); `--fire-backlog` to opt in |
+| 4 | Webhook URL SSRF / abuse | URL is operator env (`WATCHER_WEBHOOK_URL`), not user-controllable; chain-derived payload fields go in body only, never the URL |
 | 5 | Local clock skew vs on-chain expiry | Approximate maturity is acceptable for a notification trigger; `nowFn` injectable for tests |
+| 6 | Crash between log and mark drops a holder | Log emitted **before** mark → restart re-fires the log (at-least-once), never at-most-once-then-dropped |
+| 7 | Dead poller leaves watcher polling stale db | keeper `Promise.race` aborts both loops + exits non-zero on either throw |
+
+## Non-goals (roadmap)
+
+- **Re-notify / escalation on an interval.** Each note fires exactly once. Holders are not
+  silently dropped: the durable log persists the record, and `/pending-settle` + the frontend
+  Claim button already surface un-settled notes persistently — the watcher is only the proactive
+  ping on top. `notified.notified_at` is retained so a future `REMIND_MS` backoff re-notify can
+  be added without schema change.
+- **Pruning `notified` against `settlements`.** The JOIN-dedup means a notified note never
+  re-fires regardless, so the table is append-only housekeeping; growth is negligible at
+  hackathon scale. A periodic `DELETE FROM notified WHERE note_id IN (SELECT note_id FROM
+  settlements)` can be added later.
+- **Sponsored-tx gas station** (holder-signs claim, project pays gas) — next round.
 
 ## Testing
 
 - **`notify.test.js`** — injected fake `fetch`:
-  - payload shape `{noteId, owner, expiry_ts_ms, strategy, notional}`;
+  - payload shape `{noteId, owner, expiry_ts_ms, strategy, notional}` with `owner === note.issuer`;
   - no `webhookUrl` → `fetch` never called, log still emitted;
-  - `fetch` rejects → `notifyMatured` does not throw, failure logged.
+  - `fetch` rejects / times out → `notifyMatured` does not throw, failure logged;
+  - log is emitted before the webhook POST is attempted.
 - **`watcher.test.js`** — in-memory db + fake `nowFn` + `AbortController`:
   - dedup: same note across two polls fires exactly once;
-  - cold-start seed: pre-existing pending notes are seeded silently, never fired;
-  - new maturity: a note crossing `nowFn()` after seed fires exactly once;
+  - cutoff backlog: a note with `expiry_ts_ms < seed_cutoff_ts` never fires (no race on poller);
+  - new maturity: a note maturing at/after the cutoff fires exactly once;
+  - cutoff persists across a simulated restart (same db) — backlog stays suppressed, no re-fire;
+  - `--fire-backlog` / `fireBacklog: true` fires the pre-cutoff backlog;
+  - log-before-mark: a note left un-marked (simulated crash after log) re-fires its log next run;
   - abort: `signal.abort()` exits the loop promptly.
 - **Monkey:** webhook rejecting on every call does not kill the loop; many notes maturing in
-  the same millisecond each fire once; abort mid-sleep returns immediately.
+  the same millisecond each fire once; abort mid-sleep returns immediately; poller throw aborts
+  the keeper non-zero (supervision).
 
-Tests encode WHY: dedup protects holders from spam; silent seed protects the webhook from
-cold-start floods; webhook-isolation protects settlement detection from external outages.
+Tests encode WHY: dedup protects holders from spam; the cutoff boundary protects the webhook from
+cold-start floods *without* racing ingest; log-before-mark protects a holder from being silently
+dropped on crash; webhook-isolation protects settlement detection from external outages.
 
 ## Config
 
@@ -141,4 +199,5 @@ cold-start floods; webhook-isolation protects settlement detection from external
 ## Files
 
 - New: `scripts/indexer/notify.js`, `watcher.js`, `keeper.js`, `notify.test.js`, `watcher.test.js`
-- Modified: `scripts/indexer/db.js` (notified table + helpers)
+- Modified: `scripts/indexer/db.js` (`notified` + `meta` tables, `isNotified`/`markNotified`/`getOrInitMeta`)
+- Modified: `scripts/indexer/queries.js` (new `pendingUnnotified`; existing `pendingSettle` untouched)
