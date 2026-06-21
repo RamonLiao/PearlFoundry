@@ -3,12 +3,16 @@ import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { useCurrentAccount, useDAppKit } from '@mysten/dapp-kit-react';
 import { runMint } from './mint.js';
 import { EXPLORER, DEMO_EXPIRY } from './config.js';
+import MyNotes from './MyNotes.jsx';
 
 export default function App() {
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Shared signExec: wraps dAppKit.signAndExecuteTransaction; accepts a Transaction object.
+  const signExec = (tx) => dAppKit.signAndExecuteTransaction({ transaction: tx });
 
   async function onMint() {
     if (!account) return;
@@ -42,6 +46,7 @@ export default function App() {
             {busy ? 'Minting…' : 'Mint Range Note'}
           </button>
           <pre style={{ whiteSpace: 'pre-wrap', marginTop: 12 }}>{status}</pre>
+          <MyNotes account={account} signExec={signExec} />
         </>
       )}
     </div>

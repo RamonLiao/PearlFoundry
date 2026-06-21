@@ -27,6 +27,15 @@ export function createServer(db, { client, txdeps } = {}) {
         }).map(decodeNote));
         if (p === '/pending-settle') return json(res, 200, pendingSettle(db, Date.now()).map(decodeNote));
         if (p === '/fees') return json(res, 200, feeStats(db));
+        if (p === '/oracle') {
+          if (!client || !txdeps) return json(res, 503, { error: 'tx routes not configured', code: 'NO_CLIENT' });
+          const asset = url.searchParams.get('asset') ?? 'BTC';
+          const expiry = url.searchParams.get('expiry');
+          if (!expiry) return json(res, 400, { error: 'expiry required', code: 'BAD_PARAMS' });
+          const { resolveOracle } = await import('../pricing/oracle.js');
+          const { oracleId } = await resolveOracle(client, asset, BigInt(expiry));
+          return json(res, 200, { oracleId });
+        }
       }
       if (req.method === 'POST') {
         if (!client || !txdeps) return json(res, 503, { error: 'tx routes not configured', code: 'NO_CLIENT' });

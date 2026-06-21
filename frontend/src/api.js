@@ -14,3 +14,10 @@ export async function getNotes(issuer) {
   if (!r.ok) throw new Error('failed to load notes');
   return r.json();
 }
+
+export async function getOracle(asset, expiry) {
+  const r = await fetch(`${API}/oracle?asset=${encodeURIComponent(asset)}&expiry=${encodeURIComponent(expiry)}`);
+  const j = await r.json();
+  if (!r.ok) { const e = new Error(j.error || 'oracle lookup failed'); e.code = j.code; throw e; }
+  return j.oracleId;
+}
