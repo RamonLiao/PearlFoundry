@@ -1,0 +1,10 @@
+{
+  "name": "indexer",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": { "test": "node --test" },
+  "dependencies": {
+    "@mysten/sui": "^1.45.2",
+    "better-sqlite3": "^11.3.0"
+  }
+}
