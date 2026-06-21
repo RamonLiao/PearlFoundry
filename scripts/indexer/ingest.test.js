@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb, getCursor } from './db.js';
-import { drainOnce } from './ingest.js';
+import { drainOnce, runPoller } from './ingest.js';
 
 const PKG = '0xpkg';
 const ev = (txd, seq, note) => ({
@@ -42,6 +42,30 @@ test('drainOnce on empty page does not rewind cursor', async () => {
   await drainOnce({ db, pkg: PKG, client: fakeClient([
     { data: [], nextCursor: null, hasNextPage: false }]) });
   assert.deepEqual(getCursor(db), { tx_digest: 'T1', event_seq: '0' });
+});
+
+test('drainOnce throws on invalid pagination (hasNextPage=true, nextCursor=null)', async () => {
+  const db = openDb();
+  const client = fakeClient([{ data: [], nextCursor: null, hasNextPage: true }]);
+  await assert.rejects(() => drainOnce({ client, db, pkg: PKG }), /invalid pagination/);
+});
+
+test('runPoller stops after maxFails consecutive RPC failures (fail-loud)', async () => {
+  const db = openDb();
+  const client = { queryEvents: async () => { throw new Error('rpc down'); } };
+  await assert.rejects(
+    () => runPoller({ client, db, pkg: PKG, pollMs: 1, maxFails: 3 }),
+    /stopped after 3 consecutive failures/,
+  );
+});
+
+test('runPoller exits cleanly when aborted', async () => {
+  const db = openDb();
+  const client = fakeClient([{ data: [], nextCursor: null, hasNextPage: false }]);
+  const ac = new AbortController();
+  const p = runPoller({ client, db, pkg: PKG, pollMs: 50, signal: ac.signal });
+  ac.abort();
+  await p; // resolves, does not throw
 });
 
 test('drainOnce skips unknown event types (normalize null)', async () => {

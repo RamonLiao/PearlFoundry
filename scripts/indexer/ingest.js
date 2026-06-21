@@ -3,8 +3,9 @@ import { getCursor, ingestPage } from './db.js';
 import { normalize } from './events.js';
 
 const sleep = (ms, signal) => new Promise((res, rej) => {
-  const t = setTimeout(res, ms);
-  signal?.addEventListener('abort', () => { clearTimeout(t); rej(new Error('aborted')); }, { once: true });
+  const onAbort = () => { clearTimeout(t); rej(new Error('aborted')); };
+  const t = setTimeout(() => { signal?.removeEventListener('abort', onAbort); res(); }, ms);
+  signal?.addEventListener('abort', onAbort, { once: true });
 });
 
 export async function drainOnce({ client, db, pkg }) {
@@ -23,6 +24,8 @@ export async function drainOnce({ client, db, pkg }) {
     total += ingestPage(db, rows, page.nextCursor);
     if (page.nextCursor != null) cursor = page.nextCursor;
     if (!page.hasNextPage) break;
+    // fail-loud: hasNextPage with no cursor would re-query the same page forever.
+    if (page.nextCursor == null) throw new Error('invalid pagination: hasNextPage=true but nextCursor=null');
   }
   return total;
 }

@@ -46,15 +46,30 @@ export function getCursor(db) {
 function insertStmt(db, table) {
   const cols = COLS[table];
   const ph = cols.map((c) => `@${c}`).join(', ');
-  return db.prepare(`INSERT OR IGNORE INTO ${table} (${cols.join(', ')}) VALUES (${ph})`);
+  return db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${ph})`);
 }
 
-export function ingestPage(db, normalized, nextCursor) {
+// Constraint handling, distinguishing the two cases that look alike but mean different things:
+//  - PRIMARYKEY (tx_digest,event_seq): the SAME event re-delivered (at-least-once). Silent idempotent skip.
+//  - UNIQUE(note_id) from a DIFFERENT envelope: a SECOND settlement/mint for one note. By contract
+//    this is impossible (a note settles once then is deleted), so it's an anomaly: skip the insert to
+//    protect JOIN integrity (no PnL fan-out) but WARN loudly — never drop it silently (Rule 12).
+//  - Anything else (NOT NULL, datatype, schema): a real bug → rethrow → page rolls back (fail-loud).
+export function ingestPage(db, normalized, nextCursor, log = console.warn) {
   const txn = db.transaction(() => {
     let inserted = 0;
     for (const { table, row } of normalized) {
-      const info = insertStmt(db, table).run(row);
-      inserted += info.changes;
+      try {
+        const info = insertStmt(db, table).run(row);
+        inserted += info.changes;
+      } catch (e) {
+        if (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') continue; // idempotent replay — silent
+        if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+          log(`[indexer] ANOMALY: duplicate note_id in ${table} skipped (envelope ${row.tx_digest}:${row.event_seq}, note ${row.note_id})`);
+          continue;
+        }
+        throw e;
+      }
     }
     if (nextCursor != null) {
       db.prepare(`INSERT INTO cursor (id, tx_digest, event_seq, updated_at) VALUES (0, @t, @s, @u)
