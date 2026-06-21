@@ -16,6 +16,8 @@ export function computeSeedCutoff(db, { fireBacklog = false, nowFn = Date.now } 
 export async function watchOnce({ db, nowFn = Date.now, seedCutoff, fireBacklog = false, webhookUrl, fetch = globalThis.fetch, log = console.log }) {
   const rows = pendingUnnotified(db, nowFn());
   const fresh = fireBacklog ? rows : rows.filter((r) => Number(r.expiry_ts_ms) >= seedCutoff);
+  // Mid-batch failure is intentionally at-least-once per note: already-marked notes stay
+  // marked, the throw aborts the rest, and the next pass re-fires only the unmarked tail.
   for (const note of fresh) {
     await notifyMatured({ note, webhookUrl, fetch, log });
     markNotified(db, note.note_id, nowFn());

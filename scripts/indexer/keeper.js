@@ -10,10 +10,12 @@ export async function runKeeper({ db, client, pkg, controller, pollMs, webhookUr
   const watcher = runWatcherFn({ db, pollMs, webhookUrl, fireBacklog, log, signal });
   try {
     await Promise.race([poller, watcher]);
-  } catch (e) {
+  } finally {
+    // Either loop throwing OR returning normally must stop the sibling — a survivor on an
+    // unsupervised db is the orphan we refuse. finally runs on both paths; a throw still
+    // propagates after it (fail-loud, Rule 12).
     controller.abort();
-    await Promise.allSettled([poller, watcher]); // let the other loop unwind on the abort
-    throw e;
+    await Promise.allSettled([poller, watcher]);
   }
 }
 
