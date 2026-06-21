@@ -10,11 +10,19 @@ const ev = (txd, seq, note) => ({
     notional: '1000', expiry_ts_ms: '1', walrus_blob_id: [2], is_public: false },
 });
 
-// fake client returns scripted pages
+// fake client returns scripted pages, records the query it was called with
 function fakeClient(pages) {
   let i = 0;
-  return { queryEvents: async () => pages[i++] };
+  const calls = [];
+  return { calls, queryEvents: async (arg) => { calls.push(arg); return pages[i++]; } };
 }
+
+test('drainOnce filters by MoveEventModule (not MoveModule — verified live testnet)', async () => {
+  const db = openDb();
+  const client = fakeClient([{ data: [], nextCursor: null, hasNextPage: false }]);
+  await drainOnce({ client, db, pkg: PKG });
+  assert.deepEqual(client.calls[0].query, { MoveEventModule: { package: PKG, module: 'events' } });
+});
 
 test('drainOnce loops until hasNextPage=false and advances cursor', async () => {
   const db = openDb();

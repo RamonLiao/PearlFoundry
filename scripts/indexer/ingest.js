@@ -13,7 +13,10 @@ export async function drainOnce({ client, db, pkg }) {
   let total = 0;
   for (;;) {
     const page = await client.queryEvents({
-      query: { MoveModule: { package: pkg, module: 'events' } },
+      // MoveEventModule = filter by the event TYPE's defining module (events).
+      // NOT MoveModule, which filters by the tx's entry module (note_factory) and returns 0.
+      // Verified live on testnet 2026-06-21 (calibrate.js).
+      query: { MoveEventModule: { package: pkg, module: 'events' } },
       cursor, order: 'ascending',
     });
     const rows = page.data.map(normalize).filter((x) => x != null);
