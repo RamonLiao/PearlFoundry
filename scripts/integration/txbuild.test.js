@@ -21,7 +21,7 @@ test('buildMintTx: 3 moveCalls (begin/add/finalize) + a splitCoins', () => {
     step: 100000000000n, expiryTotal: 1 });
   const d = tx.getData();
   assert.equal(d.sender, SENDER);
-  assert.ok(!d.gasData.budget);
+  assert.ok(d.gasData.budget);
   const fns = d.commands.filter(c => c.MoveCall).map(c => c.MoveCall.function);
   assert.deepEqual(fns, ['mint_begin', 'mint_add_expiry', 'mint_finalize']);
   assert.ok(d.commands.some(c => c.SplitCoins));

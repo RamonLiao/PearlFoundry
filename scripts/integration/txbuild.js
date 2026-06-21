@@ -37,6 +37,7 @@ export function buildMintTx({ sender, mgr, oracle, dusdcCoin, notional, lower, u
     arguments: [ticket, tx.object(PREDICT), tx.object(mgr), tx.object(oracle), tx.object(CLOCK)],
   });
   tx.moveCall({ target: `${PKG}::note_factory::mint_finalize`, arguments: [ticket, tx.object(CLOCK)] });
+  tx.setGasBudget(2_000_000_000);
   return tx;
 }
 

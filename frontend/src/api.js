@@ -11,8 +11,9 @@ export async function postTx(path, body) {
 
 export async function getNotes(issuer) {
   const r = await fetch(`${API}/notes?issuer=${issuer}`);
-  if (!r.ok) throw new Error('failed to load notes');
-  return r.json();
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || 'failed to load notes'); e.code = j.code; e.detail = j.detail; throw e; }
+  return j;
 }
 
 export async function getOracle(asset, expiry) {
