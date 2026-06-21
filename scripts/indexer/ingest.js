@@ -2,7 +2,7 @@ import { SuiClient } from '@mysten/sui/client';
 import { getCursor, ingestPage } from './db.js';
 import { normalize } from './events.js';
 
-const sleep = (ms, signal) => new Promise((res, rej) => {
+export const sleep = (ms, signal) => new Promise((res, rej) => {
   const onAbort = () => { clearTimeout(t); rej(new Error('aborted')); };
   const t = setTimeout(() => { signal?.removeEventListener('abort', onAbort); res(); }, ms);
   signal?.addEventListener('abort', onAbort, { once: true });
