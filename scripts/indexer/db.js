@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS public_notes (
   PRIMARY KEY (tx_digest, event_seq));
 CREATE TABLE IF NOT EXISTS cursor (
   id INTEGER PRIMARY KEY CHECK (id = 0), tx_digest TEXT, event_seq TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS notified (
+  note_id     TEXT PRIMARY KEY,
+  notified_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL);
 `;
 
 const COLS = {
@@ -79,4 +85,21 @@ export function ingestPage(db, normalized, nextCursor, log = console.warn) {
     return inserted;
   });
   return txn();
+}
+
+export function isNotified(db, noteId) {
+  return db.prepare('SELECT 1 FROM notified WHERE note_id=?').get(noteId) != null;
+}
+
+export function markNotified(db, noteId, ts) {
+  db.prepare('INSERT OR IGNORE INTO notified (note_id, notified_at) VALUES (?, ?)').run(noteId, Number(ts));
+}
+
+// Read key; if absent, insert String(initFn()) once (insert-or-ignore so a concurrent
+// init can't double-write) and return the stored value. Stable across restarts.
+export function getOrInitMeta(db, key, initFn) {
+  const existing = db.prepare('SELECT value FROM meta WHERE key=?').get(key);
+  if (existing) return existing.value;
+  db.prepare('INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?)').run(key, String(initFn()));
+  return db.prepare('SELECT value FROM meta WHERE key=?').get(key).value;
 }
