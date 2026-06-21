@@ -31,4 +31,5 @@ test('watcher throwing aborts the poller and rejects', async () => {
     /watcher died/,
   );
   assert.equal(pollerAborted, true);
+  assert.equal(controller.signal.aborted, true);
 });
