@@ -2,8 +2,8 @@
 // Usage: node mint.js <dryrun|bytes>
 //   env: MGR, ORACLE, DUSDC_COIN, NOTIONAL(optional), LOWER, UPPER, STEP, EXPIRY_TOTAL
 import { SuiClient } from '@mysten/sui/client';
-import { Transaction } from '@mysten/sui/transactions';
-import { RPC, ADDR, PKG, CFG, VAULT, PREDICT, DUSDC, CLOCK } from './config.js';
+import { RPC, ADDR } from './config.js';
+import { buildMintTx } from './txbuild.js';
 
 const mode = process.argv[2] || 'dryrun';
 const E = process.env;
@@ -15,33 +15,9 @@ if (!MGR || !ORACLE || !DUSDC_COIN || !E.LOWER) { console.error('missing env'); 
 
 const client = new SuiClient({ url: RPC });
 
-const tx = new Transaction();
-tx.setSender(ADDR);
+const tx = buildMintTx({ sender: ADDR, mgr: MGR, oracle: ORACLE, dusdcCoin: DUSDC_COIN,
+  notional: NOTIONAL, lower: LOWER, upper: UPPER, step: STEP, expiryTotal: EXPIRY_TOTAL });
 tx.setGasBudget(2_000_000_000); // 2 SUI: 16-leg ladder ≈0.55 SUI; gas scales steeply per leg
-const bytes = s => [...new TextEncoder().encode(s)];
-
-const [pay] = tx.splitCoins(tx.object(DUSDC_COIN), [NOTIONAL]);
-const ticket = tx.moveCall({
-  target: `${PKG}::note_factory::mint_begin`,
-  typeArguments: [DUSDC],
-  arguments: [
-    tx.object(CFG), tx.object(VAULT), tx.object(MGR), pay,
-    tx.pure.vector('u8', bytes('BTC')),
-    tx.pure.u64(LOWER), tx.pure.u64(UPPER), tx.pure.u64(STEP),
-    tx.pure.u8(EXPIRY_TOTAL),
-    tx.pure.vector('u8', bytes('walrus-blob-test')),
-    tx.pure.bool(true),
-  ],
-});
-tx.moveCall({
-  target: `${PKG}::note_factory::mint_add_expiry`,
-  typeArguments: [DUSDC],
-  arguments: [ticket, tx.object(PREDICT), tx.object(MGR), tx.object(ORACLE), tx.object(CLOCK)],
-});
-tx.moveCall({
-  target: `${PKG}::note_factory::mint_finalize`,
-  arguments: [ticket, tx.object(CLOCK)],
-});
 
 const txBytes = await tx.build({ client });
 const b64 = Buffer.from(txBytes).toString('base64');
