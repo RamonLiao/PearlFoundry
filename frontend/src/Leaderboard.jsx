@@ -45,7 +45,7 @@ export default function Leaderboard({ account }) {
       </header>
 
       {msg && <pre className="nl-error">{msg}</pre>}
-      {rows.length === 0 && !msg && <p className="nl-empty">No settled notes yet.</p>}
+      {rows.length === 0 && !msg && !loading && <p className="nl-empty">No settled notes yet.</p>}
 
       {rows.length > 0 && (
         <table className="nl-table">
@@ -61,7 +61,7 @@ export default function Leaderboard({ account }) {
           </thead>
           <tbody>
             {rows.map((r, i) => {
-              const isYou = me != null && normalizeSuiAddress(r.issuer) === me;
+              const isYou = me != null && r.issuer != null && normalizeSuiAddress(r.issuer) === me;
               const pnl = Number(r.realized_pnl) / DUSDC;
               const winPct = Number(r.win_rate) * 100;
               const perf = Number(r.total_perf_fee) / DUSDC;
@@ -73,7 +73,7 @@ export default function Leaderboard({ account }) {
                     <span className="nl-rank-n">{i + 1}</span>
                   </td>
                   <td className="nl-td nl-issuer" title={r.issuer}>
-                    {r.issuer.slice(0, 8)}…{r.issuer.slice(-4)}
+                    {(r.issuer ?? '').slice(0, 8)}…{(r.issuer ?? '').slice(-4)}
                     {isYou && <span className="nl-you">YOU</span>}
                   </td>
                   <td className={`nl-td nl-td--num nl-pnl ${pnl >= 0 ? 'is-pos' : 'is-neg'}`}>
