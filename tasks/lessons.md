@@ -1,5 +1,17 @@
 # Lessons
 
+## 2026-06-22 — git 狀態「看似被平行 session 污染」時，先查 authorship/timestamp 再下結論，別擅自動 branch
+- **情境**：SDD 跑到 Task 5 結束算 merge-base 時發現：(1) HEAD 跑到 `main` 而非我建的 `feat/settlement-watcher`，(2) 我的 task commits 中間插了一個不是我做的 `b6694aa "PearlFoundry README"`。直覺＝平行 session 污染（呼應 06-20 /tmp 覆寫教訓）。
+- **真相（reflog + `git show -s --format`）**：`b6694aa` 作者就是 owner 本人（同人不同 email），README 是**這專案自己的產品 README**（PearlFoundry = 此 repo），時間在 session 進行中；reflog `Branch: renamed refs/heads/feat/settlement-watcher to refs/heads/main` = owner **刻意把 feature branch 升成 main**。不是敵意污染，歷史線性完好。
+- **正確做法**：git 狀態與預期矛盾時，**取證優先、不 mutate**：`git reflog`（誰改了 HEAD/branch）、`git show -s --format='%an %ae %ci %s' <sha>`（外來 commit 的作者/時間/內容）、`git worktree list`、`git branch -a`。確認是「自己人的合法操作」還是「真污染」再決定。對 hard-to-reverse 的 branch/push 操作，先把決策交回 human（本次 owner 選「停在 main、不 push、等決定 remote」）。
+- **連帶**：SDD ledger（`.superpowers/sdd/progress.md`）記的 commit SHA 在 git 裡永存，branch 名字被改也能靠 SHA + reflog 還原進度，不用重跑已完成 task。
+
+## 2026-06-22 — spec 階段的 skill review 能擋掉「紙上正確但 runtime 會 race」的設計（settlement watcher 連修 2 個）
+- **背景**：watcher spec 第一版自審只抓到 seeding 職責歸屬；sui-indexer + sui-architect 兩個 skill 並行審 spec 才抓到兩個真 bug：(1) 冷啟動「snapshot-seed 當下 pending set」會 **race 同進程的 runPoller**——開機到 seed 之間 poller 剛 ingest 的新成熟 note 被當 backlog 永久吞掉，破壞 headline 保證；(2) `markNotified` 在 `notifyMatured` 前 → crash 在中間永久標記但 log 從沒發，打臉「log 是 source of truth」。
+- **正確做法**：off-chain daemon/pipeline 的 spec 一樣要過領域 skill review（不只 Move 才需要）。**凡是「兩個非同步來源共享狀態」的設計（poller 寫 / watcher 讀同一 db）必問：snapshot 取在哪個時間點？跟另一方的進度有無 race？** 解法把「start-time snapshot」改成「per-record 純 predicate 邊界」（`expiry < seed_cutoff_ts` 持久化），order-independent、免賭對方進度。
+- **連帶**：log-before-mark 的測試要用「注入會 throw 的 log」模擬 crash-after-log-before-mark，斷言下一輪 re-fire——這才是測 at-least-once 的 why，不是 happy-path 重述。
+
+
 ## 2026-06-16 — 設計前必驗鏈上真實 ABI，別信 business spec 的技術假設
 - **錯誤 pattern**：IDEA_REPORT/BUSINESS_SPEC 假設 Predict 有 `Position` 物件、可 `vector<Position>` 自持。初版架構 §3 照抄。
 - **真相**：Predict 根本沒有 Position 物件；部位是 shared `PredictManager`（key-only 無 store）內的 table 記帳。若帶錯假設進實作，會在寫第一個 entry function 時才爆。
