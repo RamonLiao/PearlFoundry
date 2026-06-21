@@ -40,11 +40,18 @@ New POST routes in the same process. Existing read-only routes
 
 - `POST /create-manager-tx` — body `{ sender }`.
   Returns serialized PTB1 (`predict::create_manager`, owner = sender).
-- `POST /quote` — body `{ sender }`.
+- `POST /quote` — body `{ sender, mgr }`.
   Runs the existing `scripts/pricing/` dry-run band probe live (enumerates the
   ORACLE id fresh each call, never cached), returns
   `{ ladder, oracleId, mintTx }` where `mintTx` is the serialized un-built PTB2
   (`mint_begin → mint_add_expiry×N → mint_finalize`).
+  **dUSDC coin input (A2)**: backend read-only `getCoins({ owner: sender,
+  coinType: DUSDC })`, picks/merges a coin to fund the notional, references it
+  via `tx.object(coinId)` **unresolved** (version filled by dapp-kit at build).
+  This is an input-object reference, not a build/gas-pin — consistent with §2.1.
+  **Shared manager (A3)**: PTB2 takes `mgr` as a shared input via
+  `tx.object(mgr)` unresolved; the manager from PTB1 must be **final** before
+  this call so dapp-kit/client can resolve its `initialSharedVersion` at build.
   Before serializing, run the existing pre-submit dry-run guard (`GUARD=1`
   logic). If the band moved out (oracle rolled), return 4xx `{ error, code }`
   → frontend prompts re-quote.
@@ -64,9 +71,13 @@ calling the extracted functions.
 
 - `<ConnectButton>` from dapp-kit.
 - **Mint button** flow:
-  1. `POST /create-manager-tx { sender }` → `signAndExecuteTransaction(PTB1)`.
-  2. Extract MGR id from effects (created shared object / objectChanges).
-  3. `POST /quote { sender }` → `signAndExecuteTransaction(PTB2)`.
+  1. `POST /create-manager-tx { sender }` → `signAndExecuteTransaction(PTB1,
+     { options: { showObjectChanges: true } })` (A4 — must request
+     objectChanges; fallback: re-fetch via `client.getTransactionBlock(digest,
+     { showObjectChanges: true })`).
+  2. **Wait for PTB1 finality (A3)**, extract MGR id from objectChanges
+     (created shared object of type `PredictManager`).
+  3. `POST /quote { sender, mgr }` → `signAndExecuteTransaction(PTB2)`.
   4. Show explorer link + note id.
 - **My Notes**: `GET /notes?issuer=<addr>`; each expired note gets a **Claim**
   button → `POST /claim-tx { sender, note, mgr, oracle }` →
@@ -116,13 +127,21 @@ Recorded for later (B/C from brainstorming):
 - **C**: payoff diagram, Monte-Carlo, parameter wizard, backtest replay.
 - Walrus term-sheet upload; sponsored-tx / gas station settlement; faucet
   button; other strategy templates (capped-upside, principal-protected, roll).
+- **Display V2 (A5)**: note is a soulbound owned object; Display Registry
+  (`0xd`, live all networks) can register a Display so wallets show note
+  name/terms. Roadmap, not this scope.
 
 ## 8. Known assumptions / risks
 
 - Connected wallet already holds testnet dUSDC + SUI (manual faucet).
-- MGR-id extraction from PTB1 effects must be verified against real
-  `signAndExecuteTransaction` response shape (objectChanges vs effects.created)
-  — calibrate live, per the project's "runtime assumptions = dry-run verify"
-  rule.
+- **JSON-RPC deprecation (A1)**: Protocol 126 — JSON-RPC deprecated, Quorum
+  Driver disabled, permanent shutdown 2026-07-31. Both demo paths avoid the
+  disabled Quorum Driver: wallet `signAndExecuteTransaction` uses the wallet's
+  own execution route, and the pricing guard uses `dryRunTransactionBlock`
+  (dryRun ≠ Quorum Driver, confirmed prior). Safe for the hackathon window;
+  migrate read paths to gRPC/GraphQL post-event.
+- MGR-id extraction (A4) uses `objectChanges` with `showObjectChanges:true`;
+  verify the exact `PredictManager` type tag in the live response shape before
+  relying on it (runtime-assumptions = verify-live rule).
 - dapp-kit `Transaction.from(serializedJson)` round-trip must preserve the
   un-built PTB (verify the serialize/deserialize path early).
