@@ -22,9 +22,6 @@ export default function App() {
       // Sender-assert: never sign a tx built for a different address (spec §5).
       const sender = account.address;
 
-      // signExec wraps dAppKit.signAndExecuteTransaction; accepts a Transaction object.
-      const signExec = (tx) => dAppKit.signAndExecuteTransaction({ transaction: tx });
-
       const out = await runMint({ signExec, sender, expiry: DEMO_EXPIRY });
       setStatus(`Minted OK — ${EXPLORER}${out.mintDigest}`);
     } catch (e) {
