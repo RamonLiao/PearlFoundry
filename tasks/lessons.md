@@ -39,3 +39,14 @@
 ## 2026-06-20 — dual-review 共享 /tmp 路徑會被並行 session 覆寫 → codex 審到別人的 diff 回幻覺
 - **錯誤 pattern**：`git diff > /tmp/rev.diff` 用固定檔名。另一並行 session 也寫 `/tmp/rev.diff`，我的 pricing diff 被覆寫成別專案的 backend/RECALL 內容。codex review.sh 讀到該內容 → 回完全無關的幻覺 finding（`backend/src/memory.ts`、`recall.report.v1`）。
 - **正確做法**：review diff 一律寫**唯一檔名**（`/tmp/xxx_$$.diff` 帶 PID）。codex 回的 finding 若引用 diff 裡不存在的檔案/符號 = 立即懷疑輸入被汙染或幻覺，先 `head` 驗 diff 內容再重跑，不要照單全收。重跑後 codex F1–F3 全為真 bug，證明 wrapper 本身可用、問題在輸入。
+
+## 2026-06-21 — Sui event filter：要按 event 抓事件用 MoveEventModule，不是 MoveModule
+- **錯誤 pattern**：indexer poller 用 `queryEvents({ query:{ MoveModule:{ package, module:'events' }}})` 想抓 `events` module 發的事件 → 回 **0 筆**（package 還在、事件還在）。連 sui-architect+sui-indexer 兩輪 review 都誤判「emit 在 events.move 所以兩者等價」。
+- **真相（live testnet 實證）**：`MoveModule` filter 按「交易的 entry module」過濾（PTB 呼叫的是 `note_factory::mint/claim`，不是 events）→ 對不上。`MoveEventModule` 才是按「event 型別的定義 module」(`events`) 過濾，回 5 筆正確。
+- **正確做法**：抓某 module 定義的事件型別 → `MoveEventModule`；抓某 entry module 的交易所發事件 → `MoveModule`。兩者語意不同，**別假設等價**。plan 的 calibration gate（first-run 對既有上鏈事件驗 filter 真的回得來）當場抓到，再次印證「runtime 假設一律 dry-run 校準」。
+- **連帶**：parsedJson 的 u64 全是字串、`vector<u8>` 是 number[]（非 base64/hex）——都與設計假設一致，calibrate.js 一次驗完。
+
+## 2026-06-21 — 棄用的 API 不必然比 beta 的差；選型看「核心機制可靠度」非「未來相容」
+- **情境**：indexer ingestion 初選 GraphQL（理由：JSON-RPC「已棄用」這個未驗證文件假設）。
+- **真相（review 實證）**：GraphQL `events` forward cursor backwards-oriented、跨輪詢無法可靠續傳 + 仍 beta schema 不穩 → poller 核心機制破功。被 signaled 棄用的 JSON-RPC `suix_queryEvents` 反而有原生可靠 `nextCursor {txDigest,eventSeq}`（同時就是 store 的 dedup envelope）。gRPC 正式接班但 `ListAuthenticatedEvents` 對普通 `event::emit` 涵蓋未證實。
+- **正確做法**：3 層架構讓 ingest 可換 → 現在選「核心機制最可靠」的（JSON-RPC），把「戰略正確但未證實」的（gRPC）列 roadmap。別為「未來相容」賭上當下的核心可靠度。

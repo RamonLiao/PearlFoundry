@@ -1,7 +1,9 @@
 # Progress — Structured Note Factory
 
 ## Current Task
-**pricing-engine 實作 ✅ 完成（2026-06-20）**：Task 1–5 全綠，inline TDD。`scripts/pricing/{ladder,oracle,probe,price}.js` + 9 pure tests + 2 live probe tests 全過。端到端 `price.js`(16-leg)→`mint.js dryrun`=success，net gas **0.505 SUI**。4 個 plan 偏離全來自 live 實證（見 move-notes 2026-06-20 + lessons）：1-leg→2-leg 微 ladder、boundary maxLegs-capped、maxLegs 預設 16（gas 瓶頸非 band）、staleness guard 改 pre-submit dry-run。**下一步：選做 frontend 兩顆按鈕 / indexer / 其他 strategy。**
+**indexer 實作 ✅ 完成（2026-06-21）**：off-chain event-tailing indexer，merged to master（7 commits + merge）。3 層 `scripts/indexer/{events,db,queries,decode,ingest,server}.js`，**32 tests 全綠** + **live testnet 驗證**（5 events ingest，leaderboard PnL +997587、fees 對帳 132758 精確）。設計經 sui-architect + sui-indexer 兩輪 skill review、dual-review（codex 3 pass）整合。**關鍵 live 修正：filter 必須 `MoveEventModule` 非 `MoveModule`**（後者按 tx entry module=note_factory 過濾回 0；calibration gate 當場抓到）。ingestion 從 GraphQL 翻案成 JSON-RPC `suix_queryEvents`（GraphQL forward cursor 不可靠）；gRPC 列 roadmap。spec `docs/superpowers/specs/2026-06-21-indexer-design.md`、plan `.../plans/2026-06-21-indexer.md`。**下一步：選做 frontend 兩顆按鈕 / settlement keeper(接 /pending-settle) / 其他 strategy。**
+
+（前一任務）**pricing-engine 實作 ✅ 完成（2026-06-20）**：Task 1–5 全綠，inline TDD。`scripts/pricing/{ladder,oracle,probe,price}.js` + 9 pure tests + 2 live probe tests 全過。端到端 `price.js`(16-leg)→`mint.js dryrun`=success，net gas **0.505 SUI**。4 個 plan 偏離全來自 live 實證（見 move-notes 2026-06-20 + lessons）：1-leg→2-leg 微 ladder、boundary maxLegs-capped、maxLegs 預設 16（gas 瓶頸非 band）、staleness guard 改 pre-submit dry-run。
 
 （前一任務）**pricing-engine 設計+計畫 ✅ 完成（2026-06-20）**：spec `docs/superpowers/specs/2026-06-20-pricing-engine-design.md`、plan `docs/superpowers/plans/2026-06-20-pricing-engine.md`。
 
