@@ -46,7 +46,7 @@ export function createServer(db, { client, txdeps } = {}) {
           return json(res, 200, { tx: txdeps.buildCreateManagerTx({ sender: body.sender }).serialize() });
         }
         if (p === '/quote') {
-          if (!body.sender || !body.mgr || !body.expiry) return json(res, 400, { error: 'sender, mgr, expiry required', code: 'BAD_PARAMS' });
+          if (!body.sender || !body.mgr) return json(res, 400, { error: 'sender, mgr required', code: 'BAD_PARAMS' });
           return json(res, 200, await quote(client, txdeps, body));
         }
         if (p === '/claim-tx') {
@@ -62,13 +62,14 @@ export function createServer(db, { client, txdeps } = {}) {
   });
 }
 
-async function quote(client, txdeps, { sender, mgr, asset = 'BTC', expiry, notional = '10000000' }) {
+async function quote(client, txdeps, { sender, mgr, asset = 'BTC', expiry: bodyExpiry, notional = '10000000' }) {
+  const expiry = bodyExpiry ?? await txdeps.pickLiveExpiry(client, asset);
   const coin = await txdeps.pickDusdcCoin(client, sender);
   const lad = await txdeps.computeLadder({ client, asset, expiry, notional, mgr, dusdcCoin: coin.coinId, sender });
   const tx = txdeps.buildMintTx({ sender, mgr, oracle: lad.oracleId, dusdcCoin: coin.coinId,
     notional, lower: lad.lower, upper: lad.upper, step: lad.step, expiryTotal: 1, asset });
   return { ladder: { lower: lad.lower.toString(), upper: lad.upper.toString(), step: lad.step.toString() },
-           oracleId: lad.oracleId, tx: tx.serialize() };
+           oracleId: lad.oracleId, expiry, tx: tx.serialize() };
 }
 
 // CLI: node server.js <dbPath> <port>
@@ -79,9 +80,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const txbuild = await import('../integration/txbuild.js');
   const { pickDusdcCoin } = await import('../integration/coins.js');
   const { computeLadder } = await import('../pricing/price.js');
+  const { pickLiveExpiry } = await import('../pricing/oracle.js');
   const db = openDb(process.argv[2] ?? 'indexer.db');
   const port = Number(process.argv[3] ?? 8787);
   const client = new SuiClient({ url: RPC });
-  const txdeps = { ...txbuild, pickDusdcCoin, computeLadder };
+  const txdeps = { ...txbuild, pickDusdcCoin, computeLadder, pickLiveExpiry };
   createServer(db, { client, txdeps }).listen(port, () => console.log(`[indexer+tx] serving on :${port}`));
 }

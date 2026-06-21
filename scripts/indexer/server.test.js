@@ -53,6 +53,7 @@ const fakeTxdeps = {
   buildMintTx: ({ sender, mgr }) => ({ serialize: () => `MINT:${sender}:${mgr}` }),
   buildClaimTx: ({ sender, note }) => ({ serialize: () => `CLAIM:${sender}:${note}` }),
   pickDusdcCoin: async () => ({ coinId: '0xcoin', total: 1000n }),
+  pickLiveExpiry: async () => '1750000000',
 };
 
 test('POST /create-manager-tx returns serialized tx', async () => {
@@ -75,6 +76,14 @@ test('POST /quote returns ladder + tx', async () => {
   assert.equal(status, 200);
   assert.equal(j.oracleId, '0xorc');
   assert.equal(j.tx, 'MINT:0xS:0xM');
+});
+
+test('POST /quote omits expiry — auto-picks via pickLiveExpiry', async () => {
+  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM' });
+  assert.equal(status, 200);
+  assert.equal(j.oracleId, '0xorc');
+  assert.equal(j.expiry, '1750000000');
 });
 
 test('tx route 503 when no client wired', async () => {

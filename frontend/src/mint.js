@@ -8,11 +8,10 @@ import { postTx } from './api.js';
  * @param {(tx: Transaction) => Promise<import('@mysten/dapp-kit-core').TransactionResultWithEffects>} params.signExec
  *   Injected signer — wraps dAppKit.signAndExecuteTransaction; accepts a Transaction object.
  * @param {string} params.sender  Connected wallet address (sender-assert: must match tx sender).
- * @param {string} params.expiry  Expiry ms string.
- * @returns {Promise<{mgr: string, mintDigest: string}>}
+ * @returns {Promise<{mgr: string, mintDigest: string, expiry: string}>}
  *   Resolves only on full success; throws verbatim on any failure, never fakes success.
  */
-export async function runMint({ signExec, sender, expiry }) {
+export async function runMint({ signExec, sender }) {
   // ── PTB1: create PredictManager ──────────────────────────────────────────
   const { tx: cmTxJson } = await postTx('/create-manager-tx', { sender });
 
@@ -41,7 +40,8 @@ export async function runMint({ signExec, sender, expiry }) {
   const mgr = mgrObj.objectId;
 
   // ── PTB2: quote + mint ────────────────────────────────────────────────────
-  const { tx: quoteTxJson } = await postTx('/quote', { sender, mgr, expiry });
+  const quoteRes = await postTx('/quote', { sender, mgr });
+  const { tx: quoteTxJson, expiry } = quoteRes;
 
   const r2 = await signExec(Transaction.from(quoteTxJson));
 
@@ -58,5 +58,5 @@ export async function runMint({ signExec, sender, expiry }) {
     throw new Error('PTB2 returned no digest — mint status unknown, treat as NOT completed');
   }
 
-  return { mgr, mintDigest };
+  return { mgr, mintDigest, expiry };
 }

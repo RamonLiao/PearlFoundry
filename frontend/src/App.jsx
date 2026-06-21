@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { useCurrentAccount, useDAppKit } from '@mysten/dapp-kit-react';
 import { runMint } from './mint.js';
-import { EXPLORER, DEMO_EXPIRY } from './config.js';
+import { EXPLORER } from './config.js';
 import MyNotes from './MyNotes.jsx';
 
 export default function App() {
@@ -22,7 +22,7 @@ export default function App() {
       // Sender-assert: never sign a tx built for a different address (spec §5).
       const sender = account.address;
 
-      const out = await runMint({ signExec, sender, expiry: DEMO_EXPIRY });
+      const out = await runMint({ signExec, sender });
       setStatus(`Minted OK — ${EXPLORER}${out.mintDigest}`);
     } catch (e) {
       // Fail loud: surface backend {error, code} verbatim; never hide PTB1-landed-but-PTB2-failed.
