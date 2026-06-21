@@ -12,6 +12,11 @@ move/deepbook_interface/build/
 # Node (integration scripts)
 **/node_modules/
 
+# Local indexer sqlite db (runtime/scratch)
+*.db
+*.db-shm
+*.db-wal
+
 # OS
 .DS_Store
 
