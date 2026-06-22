@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PearlFoundry — Demo Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,900&family=Martian+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --obsidian: #0b0d12;
+    --obsidian-raised: #14171f;
+    --pearl: #f2ede3;
+    --pearl-dim: #9aa0ad;
+    --nacre: linear-gradient(110deg, #b8e0d2, #c9c1e8, #f3d9c9, #bfe3e0);
+    --jade: #5fb89a;
+    --rust: #c8765a;
+    --molten: linear-gradient(#f5c869, #d99a3c);
+    --hairline: rgba(242, 237, 227, 0.08);
+    --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-mono: 'Martian Mono', ui-monospace, 'SFMono-Regular', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    overflow: hidden;
+    color: var(--pearl);
+    background-color: var(--obsidian);
+    background-image:
+      radial-gradient(110% 55% at 50% -8%, rgba(170, 205, 220, 0.07), transparent 62%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    background-attachment: fixed;
+    font-family: var(--font-mono);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #deck { position: relative; width: 100vw; height: 100vh; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(2rem, 7vw, 8rem);
+    opacity: 0;
+    transform: translateX(40px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+    visibility: hidden;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+    visibility: visible;
+  }
+  .slide.exit-left {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+
+  .kicker {
+    font-size: clamp(0.65rem, 1.1vw, 0.85rem);
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    font-weight: 500;
+    margin-bottom: clamp(1.2rem, 3vw, 2.4rem);
+    background: var(--nacre);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 900;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    margin: 0 0 1.2rem;
+    font-size: clamp(2.6rem, 8vw, 6.5rem);
+  }
+
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    margin: 0 0 clamp(1.6rem, 4vw, 3rem);
+    font-size: clamp(1.9rem, 5vw, 4rem);
+    max-width: 18ch;
+  }
+
+  .subtitle {
+    font-size: clamp(1rem, 2.2vw, 1.5rem);
+    color: var(--pearl-dim);
+    font-weight: 300;
+    max-width: 40ch;
+    line-height: 1.5;
+    margin-bottom: 1.6rem;
+  }
+
+  .meta {
+    font-size: clamp(0.7rem, 1.3vw, 0.9rem);
+    letter-spacing: 0.12em;
+    color: var(--pearl-dim);
+    text-transform: uppercase;
+  }
+
+  ul.points {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-width: 62ch;
+  }
+  ul.points li {
+    position: relative;
+    padding: clamp(1rem, 2.2vw, 1.4rem) 0 clamp(1rem, 2.2vw, 1.4rem) 2.4rem;
+    border-top: 1px solid var(--hairline);
+    font-size: clamp(0.95rem, 1.9vw, 1.35rem);
+    line-height: 1.45;
+    font-weight: 300;
+    color: #d8d3c8;
+  }
+  ul.points li:last-child { border-bottom: 1px solid var(--hairline); }
+  ul.points li::before {
+    counter-increment: pt;
+    content: counter(pt, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: clamp(1.1rem, 2.3vw, 1.5rem);
+    font-family: var(--font-mono);
+    font-size: 0.7em;
+    font-weight: 600;
+    background: var(--molten);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  ul.points { counter-reset: pt; }
+
+  .big-body {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.3rem, 3vw, 2.4rem);
+    line-height: 1.4;
+    max-width: 28ch;
+    color: #e6e1d6;
+  }
+
+  .gold {
+    background: var(--molten);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 500;
+  }
+
+  /* ---- chrome ---- */
+  .edge {
+    position: fixed;
+    top: 0;
+    width: 18vw;
+    height: 100%;
+    z-index: 20;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+  }
+  .edge.left { left: 0; }
+  .edge.right { right: 0; }
+
+  .bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: clamp(1.2rem, 3vh, 2.4rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.4rem;
+    z-index: 30;
+    pointer-events: none;
+  }
+  .dots { display: flex; gap: 0.6rem; pointer-events: auto; }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    background: rgba(242, 237, 227, 0.22);
+    cursor: pointer;
+    transition: transform 0.25s ease, background 0.25s ease;
+  }
+  .dot.on {
+    background: #f5c869;
+    transform: scale(1.4);
+  }
+
+  .nav-btn {
+    pointer-events: auto;
+    background: var(--obsidian-raised);
+    border: 1px solid var(--hairline);
+    color: var(--pearl);
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+  .nav-btn:hover { border-color: rgba(245,200,105,0.5); color: #f5c869; }
+  .nav-btn:disabled { opacity: 0.25; cursor: default; }
+
+  .counter {
+    position: fixed;
+    right: clamp(1.2rem, 3vw, 2.4rem);
+    bottom: clamp(1.4rem, 3.4vh, 2.6rem);
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    color: var(--pearl-dim);
+    z-index: 30;
+  }
+  .counter .cur { color: #f5c869; }
+
+  .hint {
+    position: fixed;
+    left: clamp(1.2rem, 3vw, 2.4rem);
+    bottom: clamp(1.4rem, 3.4vh, 2.6rem);
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(154,160,173,0.55);
+    z-index: 30;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slide { transition: opacity 0.001s linear; transform: none !important; }
+  }
+  @media (max-width: 640px) {
+    .edge { width: 22vw; }
+    .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<main id="deck" aria-roledescription="carousel" aria-label="PearlFoundry demo slides">
+
+  <section class="slide" aria-label="Title">
+    <div class="kicker">PearlFoundry</div>
+    <h1>PearlFoundry</h1>
+    <p class="subtitle">A one-click structured-note factory, built natively on DeepBook Predict.</p>
+    <p class="meta">Sui Overflow 2026 · Track 2 · Vaults &amp; Structured Products</p>
+  </section>
+
+  <section class="slide" aria-label="The Problem">
+    <div class="kicker">01 · The Problem</div>
+    <h2>Retail is locked out of a trillion-dollar market</h2>
+    <ul class="points">
+      <li>Bank notes demand $50k–$250k minimums, lock-ups and heavy KYC.</li>
+      <li>First-gen DeFi option vaults — Ribbon, Cega — collapsed on oracle manipulation and no real volatility surface.</li>
+      <li>Neither side gives buyers an immutable, auditable record of the terms they bought.</li>
+    </ul>
+  </section>
+
+  <section class="slide" aria-label="The Solution">
+    <div class="kicker">02 · The Solution</div>
+    <h2>PearlFoundry fixes all three on Sui</h2>
+    <ul class="points">
+      <li>Atomic PTB — bundle multiple DeepBook Predict legs in a single transaction. No leg-risk, no slippage.</li>
+      <li>On-chain SVI pricing — every note priced against DeepBook's live volatility surface, not a guessed number.</li>
+      <li>Soulbound note object — a tamper-proof prospectus that can't be edited after the fact.</li>
+    </ul>
+  </section>
+
+  <section class="slide" aria-label="Live Demo">
+    <div class="kicker">03 · Demo</div>
+    <h1>Live Demo</h1>
+    <p class="subtitle">Range Accrual · mint → settle → claim → leaderboard</p>
+    <p class="meta">Live on Sui testnet</p>
+  </section>
+
+  <section class="slide" aria-label="One-click mint">
+    <div class="kicker">03 · Demo — Mint</div>
+    <h2>One-click mint</h2>
+    <ul class="points">
+      <li>Pricing engine reads the live SVI forward, builds a multi-leg ladder of adjacent strikes hugging it.</li>
+      <li>Two PTBs: create the shared Predict manager, then a hot-potato builder — mint_begin → add_expiry × N → mint_finalize, all atomic.</li>
+      <li>Out comes a soulbound note — transfer-locked, claimable only by me.</li>
+    </ul>
+  </section>
+
+  <section class="slide" aria-label="Settle and claim">
+    <div class="kicker">03 · Demo — Claim</div>
+    <h2>Settle &amp; claim</h2>
+    <ul class="points">
+      <li>A notify-only watcher tails chain events and flags matured notes.</li>
+      <li>A keeper structurally cannot claim for you — the note is an owned soulbound object, so only the owner signs.</li>
+      <li>claim_begin → settle each leg → claim_finalize: settle, withdraw payout, take the 10% performance fee, burn the note — atomically.</li>
+    </ul>
+  </section>
+
+  <section class="slide" aria-label="The Nacre Ledger">
+    <div class="kicker">03 · Demo — Ledger</div>
+    <h2>The Nacre Ledger</h2>
+    <ul class="points">
+      <li>A public issuer leaderboard ranked by realised PnL — visible before you even connect a wallet.</li>
+      <li>Connect, and your own row lights up, tagged &lsquo;YOU&rsquo;.</li>
+      <li>The SocialFi hook: issuers build a public, verifiable track record of realised returns.</li>
+    </ul>
+  </section>
+
+  <section class="slide" aria-label="Roadmap">
+    <div class="kicker">04 · Roadmap</div>
+    <h2>Where it goes next</h2>
+    <ul class="points">
+      <li>More templates — Capped-Upside and Principal-Protected, reusing the same atomic-PTB factory.</li>
+      <li>Walrus term attestation — an immutable PDF term sheet and backtest CSV pinned per note, Blob ID embedded on-chain.</li>
+      <li>Gasless claims — a sponsored-transaction gas station: the holder signs, the issuer pays gas.</li>
+    </ul>
+  </section>
+
+  <section class="slide" aria-label="The Vision">
+    <div class="kicker">05 · The Vision</div>
+    <h2>The issuance rail for on-chain structured products</h2>
+    <p class="big-body">CeFi platforms white-label the entire flow through our SDK. KOLs issue bespoke notes to their followers, ranked on a transparent realised-return leaderboard. We take a <span class="gold">$50k private-banking product</span> and make it a one-click mint — composable and auditable, on Sui.</p>
+  </section>
+
+  <section class="slide" aria-label="Thank you">
+    <div class="kicker">PearlFoundry</div>
+    <h1>Thank you</h1>
+    <p class="subtitle">Questions welcome.</p>
+    <p class="meta gold">16-leg mint ≈ 0.505 SUI · claim is gas-negative · fee vault reconciled to the unit on testnet</p>
+  </section>
+
+</main>
+
+<button class="edge left" aria-label="Previous slide" id="edgePrev"></button>
+<button class="edge right" aria-label="Next slide" id="edgeNext"></button>
+
+<div class="bar">
+  <button class="nav-btn" id="btnPrev" aria-label="Previous slide">‹</button>
+  <div class="dots" id="dots" role="tablist" aria-label="Slide navigation"></div>
+  <button class="nav-btn" id="btnNext" aria-label="Next slide">›</button>
+</div>
+
+<div class="counter"><span class="cur" id="cur">1</span> / <span id="total">10</span></div>
+<div class="hint">← → arrows · swipe · click edges</div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var idx = 0;
+  var dotsWrap = document.getElementById('dots');
+
+  document.getElementById('total').textContent = total;
+
+  // build dots
+  var dots = slides.map(function (_, i) {
+    var b = document.createElement('button');
+    b.className = 'dot';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+    b.addEventListener('click', function () { go(i); });
+    dotsWrap.appendChild(b);
+    return b;
+  });
+
+  function render(prev) {
+    slides.forEach(function (s, i) {
+      s.classList.remove('active', 'exit-left');
+      if (i === idx) s.classList.add('active');
+      else if (i === prev && prev < idx) s.classList.add('exit-left');
+    });
+    dots.forEach(function (d, i) { d.classList.toggle('on', i === idx); });
+    document.getElementById('cur').textContent = idx + 1;
+    document.getElementById('btnPrev').disabled = idx === 0;
+    document.getElementById('btnNext').disabled = idx === total - 1;
+    document.getElementById('edgePrev').style.display = idx === 0 ? 'none' : '';
+    document.getElementById('edgeNext').style.display = idx === total - 1 ? 'none' : '';
+  }
+
+  function go(n) {
+    var prev = idx;
+    idx = Math.max(0, Math.min(total - 1, n));
+    if (idx !== prev) render(prev);
+    else render(prev);
+  }
+  function next() { go(idx + 1); }
+  function prev() { go(idx - 1); }
+
+  document.getElementById('btnNext').addEventListener('click', next);
+  document.getElementById('btnPrev').addEventListener('click', prev);
+  document.getElementById('edgeNext').addEventListener('click', next);
+  document.getElementById('edgePrev').addEventListener('click', prev);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { next(); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { prev(); e.preventDefault(); }
+    else if (e.key === 'Home') { go(0); e.preventDefault(); }
+    else if (e.key === 'End') { go(total - 1); e.preventDefault(); }
+  });
+
+  // touch swipe
+  var x0 = null;
+  document.addEventListener('touchstart', function (e) { x0 = e.changedTouches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', function (e) {
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 50) { dx < 0 ? next() : prev(); }
+    x0 = null;
+  }, { passive: true });
+
+  render(0);
+})();
+</script>
+</body>
+</html>

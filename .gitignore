@@ -23,3 +23,6 @@ move/deepbook_interface/build/
 # Local project plans / notes
 plan.md
 
+
+# frontend build output
+frontend/dist/
