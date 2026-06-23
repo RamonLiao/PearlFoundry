@@ -66,7 +66,11 @@ export default function MyNotes({ account, signExec }) {
 
       setMsg(`Claimed ${EXPLORER}${digest}`);
       setMsgKind('ok');
-      await load();
+      // Claim deletes the soulbound note on-chain (tx already final — signExec resolves
+      // post-execution). Optimistically drop it locally instead of re-querying: the off-chain
+      // indexer lags the chain, so an immediate load() reads stale /notes and resurrects the
+      // just-claimed row as claimable. Refresh / useEffect reconciles once the indexer catches up.
+      setNotes((prev) => prev.filter((x) => x.note_id !== n.note_id));
     } catch (e) {
       setMsg(`CLAIM FAILED: ${e.message}${e.code ? ` [${e.code}]` : ''}`);
       setMsgKind('err');
