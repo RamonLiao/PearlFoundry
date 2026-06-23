@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { getNotes, getOracle, getNoteParams, postTx } from './api.js';
@@ -136,8 +136,8 @@ export default function MyNotes({ account, signExec }) {
               const isClaiming = claiming === n.note_id;
               const state = n.settled ? 'settled' : expired ? 'claimable' : 'pending';
               return (
-                <>
-                  <tr key={n.note_id} className="nl-row" style={{ '--i': i }} onClick={() => state !== 'settled' && toggleExpand(n)}>
+                <Fragment key={n.note_id}>
+                  <tr className={`nl-row${state !== 'settled' ? ' nl-row--expandable' : ''}`} style={{ '--i': i }} onClick={() => state !== 'settled' && toggleExpand(n)}>
                     <td className="nl-td" title={n.note_id}>{n.note_id.slice(0, 12)}…</td>
                     <td className="nl-td">{new Date(Number(n.expiry_ts_ms)).toISOString().slice(0, 16).replace('T', ' ')}</td>
                     <td className="nl-td">
@@ -172,7 +172,7 @@ export default function MyNotes({ account, signExec }) {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               );
             })}
           </tbody>
