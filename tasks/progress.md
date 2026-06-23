@@ -1,24 +1,27 @@
 # Progress — Structured Note Factory
 
 ## TODO（下一輪，建議新 chat）
-- [ ] **🔴 UI 全面重設計（下一輪主任務）**：使用者認為現在的 obsidian 黑底「太醜」。**方向**：改用 logo 珍珠貝殼的調色盤與風格 —— 柔白/nacre 珠光、粉/紫/桃漸層、暖金 molten 珍珠點綴、kawaii 圓潤可愛感，**捨棄黑底**改亮色/珠光底。涵蓋 masthead、mint 卡、MyNotes 表、Leaderboard、theme.css tokens。注意：現有 Nacre Ledger 風格是「暗色 fintech ledger」，重設計等於推翻整個 brand direction → 先用 `superpowers:brainstorming` 對齊新 brand，再 `sui-frontend` 實作。參考 `docs/logo-clear/`（logo_3 配色基準）。
+- [x] **🔴 UI 全面重設計 ✅ 完成（2026-06-23）— 見 Current Task**：dark→light「Nacre Light」水底珍珠風，已 merge local `main`（merge `fcafb1f`，待 push）。
+- [ ] **（前端互動候選）** sponsored-tx gas station / payoff diagram / 其他 strategy / 有梗的 empty+loading 狀態（final review N10 提的 faded clam + skeleton）。
 - [x] **logo 最終定案 ✅（2026-06-23）**：使用者選 logo_3 去白底版。`frontend/public/logo-mark.png` ← logo_3-clear（透明底 342×341，corner flood-fill 去外圍白、中央圖案不動），`App.jsx:44` src → `/logo-mark.png`，build green。三張 clear 變體 + ondark 預覽整理在 `docs/logo-clear/`（含 README），**保留待之後加進前端讓畫面更活潑**（mint 動畫/空狀態插圖/loading 等）。舊 `logo-mark-tinted.png` 已無 caller，留作備份。
 - [ ] **（前端活潑化，候選）** 把 `docs/logo-clear/` 三張 clear logo 變體加進前端互動點綴（見該資料夾 README 用途清單）。
 - [ ] **（out-of-scope，sui-frontend review 提出）** `MyNotes.claim()` 在 `signExec` 後直接 `await load()`，缺 `client.waitForTransaction({digest})`→ re-query 可能讀到未 index 的舊狀態。純 business-logic，獨立小任務。
 - [ ] （候選）sponsored-tx gas station / payoff diagram / 其他 strategy
 
 ## Blockers
-- logo commit `a5b8d77` 待使用者手動 push（auto-mode classifier 擋直推 default branch）：
-  `git push origin main`
-- 下一輪 UI 重設計需先用 brainstorming 對齊新 brand direction（推翻現有暗色 fintech 風）。
+- **local `main` 領先 `origin/main` 8 commits 待手動 push**（含 Nacre Light redesign merge `fcafb1f` + 舊 logo commit `a5b8d77`）：`git push origin main`（auto-mode classifier 擋直推 default branch）。
 
 ## Recently Completed
+- **2026-06-23 — Nacre Light UI 重設計 ✅ 完成、merge local `main`（merge `fcafb1f` --no-ff，build green，feature branch 已刪，未 push）**：dark→light 水底珍珠風。
 - **2026-06-23 — logo 定案 + Nacre 遷移 push ✅**：masthead logo = logo_3 去白底版（commit `a5b8d77`，build green）；Nacre Ledger 遷移已 push `origin/main`（`faef861`）。logo commit `a5b8d77` **待 push**（classifier 擋直推 default branch，使用者手動 push）。live masthead 截圖確認 logo 在暗背景乾淨融合，但使用者判定整體 UI「太醜」→ 下一輪重設計。
 - **2026-06-23 — 整站 Nacre Ledger 遷移 ✅ 完成、已 merge 進 local `main`（merge `90c434a` --no-ff，build green）、已 push `faef861`**
 - **2026-06-22 — demo deck（5-min 簡報）✅ 完成、已 push 到 `origin/main`（tip `76f142a`，ff 零 force）**
 - **2026-06-22 — leaderboard 前端視圖（"Nacre Ledger"）✅ 完成、已 push 到 `origin/main`（tip `39c5612`，ff 零 force）**
 
 ## Current Task
+**Nacre Light UI 重設計 ✅ 完成、merge local `main`（2026-06-23，merge `fcafb1f` --no-ff，feature branch `feat/nacre-light-redesign` 已刪，未 push）**：dark obsidian →light「Nacre Light」水底珍珠風（推翻上一輪暗色 fintech）。**純 presentation-layer，零 business-logic 改動**（branch-wide `git diff` 證明 api/mint/config/dapp-kit/main.js byte-unchanged；JSX 只動 markup/className/copy/SVG）。**brainstorming 用 visual companion 反覆對齊** → 使用者選「A 數據嚴謹+調色盤 × B 水底生命力」hybrid，視覺基準鎖 `docs/ui-redesign/v2d-hybrid.html`（v1→v2d 各版存檔）。**6 commits**：`3ad1154` theme.css token dark→light flip（keep 名翻值）+ index.html title/italic、`53bcf4d` `Sea.jsx`（caustic+10 rising bubbles 水底層）、`e8eb1ed` masthead（`PearlFoundry` wordmark em 實色 gold、bobbing logo、shell eyebrow SVG、mascot 行）+ mint 卡 pink-gold bouncy CTA、`b5a82ef` Leaderboard light retune（trophy SVG、rank-bar fix、保留全 6 欄 incl. Win Rate meter/Perf Fee）、`ee5639f` MyNotes clam SVG（Claim 維持 ghost）、`9ec9c12` reduced-motion fix。**6 個自繪 inline SVG ocean icon**（shell/wave/clam/trophy/bubbles/sparkle，`stroke=currentColor`、aria-hidden）取代 emoji。**流程**：brainstorming→writing-plans→**2 路 design review（sui-frontend + frontend-design/taste）**抓 WCAG CTA 對比 fail、dim text、gradient wordmark、nacre bar 搶戲、無 mobile、ConnectButton modal mismatch 等 → 全 patch 進 plan（標 `/* review */`）→ **SDD 5 task（fresh subagent + spec/quality 雙驗）**→ final whole-branch review（opus）= 1 Critical（logo bob 漏 reduced-motion）當場修。**live 視覺 gate PASS**（playwright dev server 截圖：亮珍珠底/bobbing logo/PearlFoundry 金字/Nacre Ledger trophy/氣泡/caustic；computed-style 確認 em 實色金無漸層）。`vite build` green。**已知 gap**（接受）：ConnectButton wallet modal 仍暗色（dapp-kit-react 2.x 無 theme prop，禁 selector-fish）。**deferred minor**：orphaned `--nacre-accent` token、duplicate `@keyframes nl-reveal`（無害）。spec `docs/superpowers/specs/2026-06-23-nacre-light-redesign-design.md`、plan `…/plans/2026-06-23-nacre-light-redesign.md`。
+
+（前一任務）## Current Task
 **整站 Nacre Ledger 遷移 ✅ 完成、已 merge local `main`（2026-06-23，merge `90c434a` --no-ff，feature branch 已刪，未 push）**：App.jsx / MyNotes.jsx / index.html / theme.css 全統一成 Leaderboard 的 obsidian+nacre+molten 風格。**純 presentation-layer**（sui-frontend skill 確認 SDK wiring 全對、零改動；business logic byte-identical）。**新增** `frontend/src/App.css`（masthead/card/btn--primary molten CTA/pill/typed status/status-pip/section reveal/reduced-motion）；**App.jsx** masthead（logo+eyebrow+h1+ConnectButton 包 `.nl-connect` 不碰內部）+ mint `.nl-card` + typed status；**MyNotes.jsx** 改 table（與 Leaderboard 同構，status pip settled/claimable/pending）。**3 cleanup**：`--brass`/`--nacre-accent` token + Leaderboard 去 hardcode hex、`<meta charset>` 置頂、**MyNotes `getNotes(normalizeSuiAddress(address))` address-normalize fix**（indexer 存 padded form、wallet 給 unpadded → 不 normalize 撈不到自己 notes）。**Logo**：logo_3 產 3 變體（去底/nacre-tint/手繪 SVG）+ 備份；default 用 tinted PNG（SVG 初版 render 成「眼睛」已重畫；ImageMagick 不會 render SVG gradient，瀏覽器正常）。**SDD 6 task（每 task fresh subagent + spec/quality 雙驗 review）+ final whole-branch review（opus）= Ready-to-merge YES 零 Critical/Important**。final review 4 Minor，當場修 2 個（MyNotes 補 `import './App.css'` 防 standalone 樣式破、masthead eyebrow 改 `Testnet · DeepBook Predict` 去 a11y 重複報讀）；剩 2 Minor（duplicate `@keyframes nl-reveal` body 相同無害、pnl===0 沿用舊行為）不處理。`vite build` green；computed-style 驗證（obsidian #0b0d12 + tinted logo loaded + Fraunces + nacre border + ConnectButton/leaderboard render）。**視覺限制**：playwright MCP 在隔離 sandbox，screenshot 取不回本機 → 改用 DOM/computed-style 探測當視覺 gate；live 外觀請 `cd frontend && npm run dev`。spec `docs/superpowers/specs/2026-06-23-nacre-ledger-sitewide-migration-design.md`、plan `docs/superpowers/plans/2026-06-23-nacre-ledger-sitewide-migration.md`。**未 merge/push，等使用者決定**（logo 定案 + merge 策略）。
 
 （前一任務）## Current Task
