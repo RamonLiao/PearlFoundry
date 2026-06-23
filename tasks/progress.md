@@ -5,11 +5,11 @@
 - [ ] **（前端互動候選）** sponsored-tx gas station / payoff diagram / 其他 strategy / 有梗的 empty+loading 狀態（final review N10 提的 faded clam + skeleton）。
 - [x] **logo 最終定案 ✅（2026-06-23）**：使用者選 logo_3 去白底版。`frontend/public/logo-mark.png` ← logo_3-clear（透明底 342×341，corner flood-fill 去外圍白、中央圖案不動），`App.jsx:44` src → `/logo-mark.png`，build green。三張 clear 變體 + ondark 預覽整理在 `docs/logo-clear/`（含 README），**保留待之後加進前端讓畫面更活潑**（mint 動畫/空狀態插圖/loading 等）。舊 `logo-mark-tinted.png` 已無 caller，留作備份。
 - [ ] **（前端活潑化，候選）** 把 `docs/logo-clear/` 三張 clear logo 變體加進前端互動點綴（見該資料夾 README 用途清單）。
-- [ ] **（out-of-scope，sui-frontend review 提出）** `MyNotes.claim()` 在 `signExec` 後直接 `await load()`，缺 `client.waitForTransaction({digest})`→ re-query 可能讀到未 index 的舊狀態。純 business-logic，獨立小任務。
+- [x] **`MyNotes.claim()` stale re-query ✅ 修正（2026-06-23，commit `15baf13`，已 push）**：原 TODO 診斷為「缺 `waitForTransaction`」**有誤**——dapp-kit-react 2.x `signExec` await 已 resolve 在鏈上執行後，finality 不缺；真正 staleness 來源是**自架 off-chain indexer 的 polling lag**（`load()` 讀 `/notes`，`waitForTransaction` 只同步 fullnode 碰不到）。正解＝**optimistic 移除**剛 claim 成功的 note（`setNotes(prev=>prev.filter(...))`）取代 `await load()`，避免 indexer 還沒追上就把 claimed row 復活成 claimable；reconcile 交給 Refresh/useEffect。build green。
 - [ ] （候選）sponsored-tx gas station / payoff diagram / 其他 strategy
 
 ## Blockers
-- **local `main` 領先 `origin/main` 8 commits 待手動 push**（含 Nacre Light redesign merge `fcafb1f` + 舊 logo commit `a5b8d77`）：`git push origin main`（auto-mode classifier 擋直推 default branch）。
+- （無）2026-06-23 已 push `origin/main`（tip `15baf13`，ff 零 force）。含 Nacre Light redesign 全套 + MyNotes claim optimistic-removal fix。
 
 ## Recently Completed
 - **2026-06-23 — Nacre Light UI 重設計 ✅ 完成、merge local `main`（merge `fcafb1f` --no-ff，build green，feature branch 已刪，未 push）**：dark→light 水底珍珠風。

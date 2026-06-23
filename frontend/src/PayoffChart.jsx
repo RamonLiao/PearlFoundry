@@ -26,13 +26,14 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
   // Build the polyline: flat from pMin@0 → first point, the staircase, then flat to pMax@max.
   const stair = points.map((pt) => `${px(pt.price).toFixed(1)},${py(pt.payout).toFixed(1)}`);
   const line = [`${px(pMin).toFixed(1)},${py(0).toFixed(1)}`, ...stair, `${px(pMax).toFixed(1)},${py(maxPayout).toFixed(1)}`];
-  const area = [`${px(pMin).toFixed(1)},${py(0).toFixed(1)}`, ...line, `${px(pMax).toFixed(1)},${py(0).toFixed(1)}`];
+  const area = [...line, `${px(pMax).toFixed(1)},${py(0).toFixed(1)}`];
 
   const showDots = legs <= 24;
   const fwdX = forward != null ? px(forward) : null;
   const fwdRight = fwdX != null && fwdX > x0 + (x1 - x0) * 0.7; // flip label left when forward is far right
   const setX = settlementPrice != null ? px(settlementPrice) : null;
   const setY = settlementPrice != null ? py(payoutAt(curve, settlementPrice)) : null;
+  const setRight = setX != null && setX > x0 + (x1 - x0) * 0.7;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
@@ -77,7 +78,7 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
         <line x1={setX} y1={y1} x2={setX} y2={y0} stroke="var(--pearl)" strokeWidth="1.3" />
         <circle cx={setX} cy={setY} r={full ? 5 : 4} fill="none" stroke="var(--pearl)" strokeWidth="1.5" />
         <circle cx={setX} cy={setY} r={full ? 2.5 : 2} fill="var(--pearl)" />
-        {full && <text x={setX + 6} y={setY - 6} fill="var(--pearl)" fontFamily="var(--font-mono)" fontSize="11">settled {fmt(settlementPrice)}</text>}
+        {full && <text x={setRight ? setX - 6 : setX + 6} y={setY - 6} textAnchor={setRight ? 'end' : 'start'} fill="var(--pearl)" fontFamily="var(--font-mono)" fontSize="11">settled {fmt(settlementPrice)}</text>}
       </>}
 
       {/* axis ticks (full only) */}
