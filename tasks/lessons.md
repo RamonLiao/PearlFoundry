@@ -1,5 +1,12 @@
 # Lessons
 
+## 2026-06-23 — 驗證視覺別只信一種工具：ImageMagick 不 render SVG gradient、playwright MCP screenshot 寫到它自己的 cwd
+- **錯誤 pattern 1**：手繪 logo SVG 用 `magick -background "#0b0d12" logo.svg out.png` 預覽，render 出近黑的形狀 → 誤判 gradient 壞掉，連改兩版。用 solid `fill="#ff00ff"` 測同一 path 才發現**幾何是對的，是 IM 內建 MSVG renderer 不支援 `<linearGradient>`/`<radialGradient>`**（會 render 成黑/透明）。瀏覽器渲染正常。
+- **錯誤 pattern 2**：playwright MCP `browser_take_screenshot` 回報「Screenshot saved ./app-full.png」但 `find /` 當下找不到 → 誤判「MCP 在隔離 sandbox、檔案取不回」，改用 computed-style 探測當 gate。**真相**：screenshot 確實寫到本機 repo root（MCP server 的 cwd 剛好＝repo root），只是我 `find` 跑得比檔案 flush 早（race）；幾分鐘後 `git status` 就看到 `app-full.png`（293KB，可直接 Read 看圖）。
+- **正確做法**：(1) SVG 視覺驗證一律用真瀏覽器（playwright/dev server），別用 ImageMagick rasterize 判斷 gradient/filter 類效果——IM 的 SVG 支援很弱。(2) playwright MCP 截圖找不到時，先 `git status`/`ls` repo root（MCP 可能就寫在 cwd），別急著斷定「取不回」就放棄看圖。computed-style 探測是好的補充 gate，但能看圖就看圖。
+- **連帶**：第一版 SVG 兩個 arc 同向彎 → render 成「眼睛」（shell＝眼皮、ribs＝睫毛、pearl＝瞳孔）。glyph 設計要 top shell 上凸、bottom shell 下凸、pearl 夾中間才像開蚌；小尺寸（~28-40px）寧可 bold simple（單一 scallop fan + pearl）勝過細節。
+
+
 ## 2026-06-22 — git 狀態「看似被平行 session 污染」時，先查 authorship/timestamp 再下結論，別擅自動 branch
 - **情境**：SDD 跑到 Task 5 結束算 merge-base 時發現：(1) HEAD 跑到 `main` 而非我建的 `feat/settlement-watcher`，(2) 我的 task commits 中間插了一個不是我做的 `b6694aa "PearlFoundry README"`。直覺＝平行 session 污染（呼應 06-20 /tmp 覆寫教訓）。
 - **真相（reflog + `git show -s --format`）**：`b6694aa` 作者就是 owner 本人（同人不同 email），README 是**這專案自己的產品 README**（PearlFoundry = 此 repo），時間在 session 進行中；reflog `Branch: renamed refs/heads/feat/settlement-watcher to refs/heads/main` = owner **刻意把 feature branch 升成 main**。不是敵意污染，歷史線性完好。
