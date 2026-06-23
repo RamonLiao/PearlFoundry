@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Nacre Ledger">
+  <defs>
+    <linearGradient id="nacre" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b8e0d2"/>
+      <stop offset="0.4" stop-color="#c9c1e8"/>
+      <stop offset="0.7" stop-color="#f3d9c9"/>
+      <stop offset="1" stop-color="#bfe3e0"/>
+    </linearGradient>
+    <radialGradient id="pearl" cx="0.38" cy="0.34" r="0.7">
+      <stop offset="0" stop-color="#fbe9b8"/>
+      <stop offset="0.5" stop-color="#f5c869"/>
+      <stop offset="1" stop-color="#d99a3c"/>
+    </radialGradient>
+  </defs>
+  <!-- shell: two fan halves -->
+  <path d="M6 40 Q32 8 58 40 Q46 34 32 34 Q18 34 6 40 Z" fill="url(#nacre)" opacity="0.92"/>
+  <path d="M8 42 Q32 60 56 42 Q44 50 32 50 Q20 50 8 42 Z" fill="url(#nacre)" opacity="0.7"/>
+  <!-- shell ribs -->
+  <g stroke="#0b0d12" stroke-opacity="0.18" stroke-width="0.8" fill="none">
+    <path d="M32 33 L24 14"/><path d="M32 33 L32 12"/><path d="M32 33 L40 14"/>
+  </g>
+  <!-- pearl -->
+  <circle cx="32" cy="40" r="9" fill="url(#pearl)"/>
+  <circle cx="29" cy="37" r="2.4" fill="#fff" opacity="0.65"/>
+</svg>
