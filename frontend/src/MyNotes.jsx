@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Transaction } from '@mysten/sui/transactions';
+import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { getNotes, getOracle, postTx } from './api.js';
 import { EXPLORER } from './config.js';
+import './Leaderboard.css';
+import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNotes styling resolves even if rendered standalone
 
 /**
  * MyNotes — lists the connected address's notes and allows claiming expired ones.
@@ -17,14 +20,18 @@ import { EXPLORER } from './config.js';
 export default function MyNotes({ account, signExec }) {
   const [notes, setNotes] = useState([]);
   const [msg, setMsg] = useState('');
+  const [msgKind, setMsgKind] = useState(/** @type {''|'ok'|'err'} */ (''));
   const [claiming, setClaiming] = useState(/** @type {string|null} */ (null));
 
   async function load() {
     setMsg('');
+    setMsgKind('');
     try {
-      setNotes(await getNotes(account.address));
+      // Normalize: indexer stores the full padded on-chain address; wallet form may be unpadded.
+      setNotes(await getNotes(normalizeSuiAddress(account.address)));
     } catch (e) {
       setMsg(`Failed to load notes: ${e.message}`);
+      setMsgKind('err');
     }
   }
 
@@ -34,6 +41,7 @@ export default function MyNotes({ account, signExec }) {
     if (claiming) return;
     setClaiming(n.note_id);
     setMsg('');
+    setMsgKind('');
     try {
       // oracle_id not stored in indexer; resolve from (asset, expiry) at claim time.
       const asset = n.strategy || 'BTC';
@@ -56,10 +64,12 @@ export default function MyNotes({ account, signExec }) {
       const digest = r.Transaction?.digest;
       if (!digest) throw new Error('Claim returned no digest — status unknown, treat as NOT completed');
 
-      setMsg(`Claimed ✓ ${EXPLORER}${digest}`);
+      setMsg(`Claimed ${EXPLORER}${digest}`);
+      setMsgKind('ok');
       await load();
     } catch (e) {
       setMsg(`CLAIM FAILED: ${e.message}${e.code ? ` [${e.code}]` : ''}`);
+      setMsgKind('err');
     } finally {
       setClaiming(null);
     }
@@ -67,38 +77,59 @@ export default function MyNotes({ account, signExec }) {
 
   const now = Date.now();
   return (
-    <div style={{ marginTop: 24 }}>
-      <h2>My Notes</h2>
-      <button onClick={load} disabled={!!claiming}>Refresh</button>
-      {notes.length === 0 && <p>No notes found.</p>}
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {notes.map((n) => {
-          const expired = Number(n.expiry_ts_ms) < now;
-          const isClaiming = claiming === n.note_id;
-          return (
-            <li key={n.note_id} style={{ margin: '8px 0', fontFamily: 'monospace' }}>
-              <span title={n.note_id}>{n.note_id.slice(0, 12)}…</span>
-              {' · expiry '}
-              {new Date(Number(n.expiry_ts_ms)).toISOString()}
-              {n.settled
-                ? <span> · settled</span>
-                : expired
-                  ? (
-                    <button
-                      style={{ marginLeft: 8 }}
-                      disabled={isClaiming || !!claiming}
-                      onClick={() => claim(n)}
-                      aria-busy={isClaiming}
-                    >
-                      {isClaiming ? 'Claiming…' : 'Claim'}
-                    </button>
-                  )
-                  : <span> · not yet expired</span>}
-            </li>
-          );
-        })}
-      </ul>
-      {msg && <pre style={{ whiteSpace: 'pre-wrap', marginTop: 8 }}>{msg}</pre>}
-    </div>
+    <section className="nl-board" style={{ marginTop: 22 }}>
+      <header className="nl-board__head">
+        <h2 className="nl-board__title">My Notes</h2>
+        <button className="nl-refresh" onClick={load} disabled={!!claiming}>Refresh</button>
+      </header>
+
+      {notes.length === 0 && <p className="nl-empty">No notes found.</p>}
+
+      {notes.length > 0 && (
+        <table className="nl-table">
+          <thead>
+            <tr>
+              <th className="nl-th">Note</th>
+              <th className="nl-th">Expiry</th>
+              <th className="nl-th">Status</th>
+              <th className="nl-th nl-th--num">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {notes.map((n, i) => {
+              const expired = Number(n.expiry_ts_ms) < now;
+              const isClaiming = claiming === n.note_id;
+              const state = n.settled ? 'settled' : expired ? 'claimable' : 'pending';
+              return (
+                <tr key={n.note_id} className="nl-row" style={{ '--i': i }}>
+                  <td className="nl-td" title={n.note_id}>{n.note_id.slice(0, 12)}…</td>
+                  <td className="nl-td">{new Date(Number(n.expiry_ts_ms)).toISOString().slice(0, 16).replace('T', ' ')}</td>
+                  <td className="nl-td">
+                    <span className={`nl-statuspip nl-statuspip--${state}`} />
+                    {state === 'settled' ? 'Settled' : state === 'claimable' ? 'Claimable' : 'Pending'}
+                  </td>
+                  <td className="nl-td nl-td--num">
+                    {state === 'claimable'
+                      ? (
+                        <button
+                          className="nl-btn"
+                          disabled={isClaiming || !!claiming}
+                          onClick={() => claim(n)}
+                          aria-busy={isClaiming}
+                        >
+                          {isClaiming ? 'Claiming…' : 'Claim'}
+                        </button>
+                      )
+                      : <span style={{ color: 'var(--pearl-dim)' }}>—</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+
+      {msg && <pre className={`nl-status ${msgKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>{msgKind === 'ok' ? '✓ ' : ''}{msg}</pre>}
+    </section>
   );
 }

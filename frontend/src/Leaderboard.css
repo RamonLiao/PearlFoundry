@@ -109,7 +109,7 @@
   vertical-align: middle;
 }
 .nl-pip--gold { background: var(--molten); box-shadow: 0 0 6px rgba(245, 200, 105, 0.5); }
-.nl-pip--brass { background: #9c8045; }
+.nl-pip--brass { background: var(--brass); }
 
 .nl-issuer { color: var(--pearl); }
 .nl-you {
@@ -125,7 +125,7 @@
 
 .nl-row--you {
   background-color: rgba(190, 215, 220, 0.06);
-  box-shadow: inset 2px 0 0 0 #c9c1e8;
+  box-shadow: inset 2px 0 0 0 var(--nacre-accent);
 }
 
 .nl-pnl.is-pos { color: var(--jade); }
