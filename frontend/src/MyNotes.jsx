@@ -79,7 +79,16 @@ export default function MyNotes({ account, signExec }) {
   return (
     <section className="nl-board" style={{ marginTop: 22 }}>
       <header className="nl-board__head">
-        <h2 className="nl-board__title">My Notes</h2>
+        <h2 className="nl-board__title">
+          <span className="nl-ico">
+            <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 11a9 4.2 0 0 1 18 0" />
+              <path d="M3 12.4a9 4.6 0 0 0 18 0" />
+              <circle cx="12" cy="12" r="2.4" />
+            </svg>
+          </span>
+          My Notes
+        </h2>
         <button className="nl-refresh" onClick={load} disabled={!!claiming}>Refresh</button>
       </header>
 
