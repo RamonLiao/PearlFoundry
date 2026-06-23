@@ -164,6 +164,8 @@
   .nl-section, .nl-status { opacity: 1; transform: none; animation: none; }
   .nl-statuspip--claimable { animation: none; }
   .nl-btn { transition: none; }
+  .nl-mast-logo { animation: none; }
+  .nl-btn--primary { transition: none; }
   .nl-caustic, .nl-bubble { animation: none; }
   .nl-bubble { opacity: 0; }
 }
