@@ -41,7 +41,7 @@ export default function App() {
   return (
     <div className="nl-app">
       <header className="nl-masthead nl-section" style={{ '--i': 0 }}>
-        <img className="nl-mast-logo" src="/logo-mark-tinted.png" alt="" />
+        <img className="nl-mast-logo" src="/logo-mark.png" alt="" />
         <div className="nl-mast-titles">
           <span className="nl-eyebrow">Testnet · DeepBook Predict</span>
           <h1 className="nl-mast-title">Structured Note Factory</h1>

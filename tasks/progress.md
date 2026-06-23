@@ -1,12 +1,13 @@
 # Progress — Structured Note Factory
 
 ## TODO（下一輪，建議新 chat）
-- [ ] **logo 最終定案**（使用者要選）：masthead 目前 default `/logo-mark-tinted.png`；另 2 個變體在 `frontend/public/`（`logo-mark.png` 去白底原色、`logo-mark.svg` 手繪 refined glyph）+ 備份 `docs/logo-variants/`。改 default 只需動 `App.jsx:44` 的 `src`。
+- [x] **logo 最終定案 ✅（2026-06-23）**：使用者選 logo_3 去白底版。`frontend/public/logo-mark.png` ← logo_3-clear（透明底 342×341，corner flood-fill 去外圍白、中央圖案不動），`App.jsx:44` src → `/logo-mark.png`，build green。三張 clear 變體 + ondark 預覽整理在 `docs/logo-clear/`（含 README），**保留待之後加進前端讓畫面更活潑**（mint 動畫/空狀態插圖/loading 等）。舊 `logo-mark-tinted.png` 已無 caller，留作備份。
+- [ ] **（前端活潑化，候選）** 把 `docs/logo-clear/` 三張 clear logo 變體加進前端互動點綴（見該資料夾 README 用途清單）。
 - [ ] **（out-of-scope，sui-frontend review 提出）** `MyNotes.claim()` 在 `signExec` 後直接 `await load()`，缺 `client.waitForTransaction({digest})`→ re-query 可能讀到未 index 的舊狀態。純 business-logic，獨立小任務。
 - [ ] （候選）sponsored-tx gas station / payoff diagram / 其他 strategy
 
 ## Blockers
-- 無（migration 已 merge local main，待使用者決定 logo 定案 + push origin/main）。
+- 無（migration 已 push origin/main `faef861`；logo 定案完成）。
 
 ## Recently Completed
 - **2026-06-23 — 整站 Nacre Ledger 遷移 ✅ 完成、已 merge 進 local `main`（merge `90c434a` --no-ff，build green）、未 push**
