@@ -60,15 +60,15 @@ Props:
 - `settlementPrice` — optional number; when present, draws the actual settlement marker + a realized-payout dot on the curve
 - `size` — `'full'` (mint card, ~420×250 viewBox, gridline + axis ticks + dUSDC labels) | `'compact'` (MyNotes inline, ~300×140, minimal: baseline + forward marker only)
 
-Visual (locked via visual companion — "A×B hybrid, tone primarily A"):
-- nacre gradient fill under the curve (`--nacre` stops, low opacity)
-- molten/gold step line (`#e0a03c`, `--molten` family), `stroke-linejoin: round`
-- strike dots on each step vertex (gold)
-- forward: rust dashed vertical line (`--rust` `#cc6a4f`) + mono label
-- settlement marker (when settled): distinct vertical + filled dot at `(settlementPrice, payout(settlementPrice))`
-- Inline SVG only (matches existing icon pattern: `stroke=currentColor` idiom, no external lib).
-- Accessibility: `role="img"` + `aria-label` summarizing range, max payout, forward; honor `prefers-reduced-motion` (no entrance animation, or static).
-- Uses existing theme tokens / `--font-mono`; no hardcoded palette beyond what tokens provide.
+Visual (locked via visual companion — "A×B hybrid, tone primarily A"; refined by design review, see §Design-review decisions):
+- **Iridescent nacre fill** under the curve derived from the **real `--nacre` 4-stop sweep** (`#cdeadf, #d7cef2, #f8ddc9, #cfeae6` at ~115deg, low opacity .10–.45) — NOT an invented 2-stop peach→lilac (that lilac-on-white reads as generic AI-purple; review C2-taste).
+- molten/gold step line, `stroke-linejoin: round`. SVG strokes cannot consume the `--molten` gradient var — add flat tokens `--molten-end: #e0a03c` / `--molten-start: #f8d27e` to theme.css and reference those (review I5-sui).
+- strike dots on each step vertex (gold) — **hidden when `legs > 24`** to avoid dot-soup at high leg counts (review I5-taste/I3-taste).
+- forward: rust dashed vertical (`--rust`) + label; **label text uses `--gold-ink` (`#9a6a1e`, ≥4.5:1) not `--rust`** for WCAG (review I1-taste/M2-sui).
+- settlement marker (claimable only): **structurally distinct from forward, not color-only** — solid (not dashed) line + ringed/2×-radius filled dot + short text tag (e.g. "settled 64.1k"), so colorblind users distinguish it from forward and from strike dots (review I2-taste).
+- Inline SVG only (matches existing icon idiom, no external lib). Per-instance unique gradient IDs via `useId()` — `nacreH`/`nacreS` would collide if both charts mount together (review M1-sui).
+- Accessibility: `role="img"` + `aria-label`; axis tick text uses `--ink-faint`/`--font-mono` at ≥11px (≈4.5:1 on white; mockup's `#a89c84`@9px fails AA — review I1-taste/M2-sui). Honor `prefers-reduced-motion`: emit **no entrance animation by default**; any line-draw/fill-fade gated in `@media (prefers-reduced-motion: no-preference)` matching the house pattern (review M3).
+- **All palette via theme tokens** — no raw hex (mockup's hardcoded values are sketch-only); add chart tokens to theme.css as needed (review C1-taste/M1).
 
 ### 3. Mint card integration (flow change)
 
@@ -97,7 +97,8 @@ File: `frontend/src/MyNotes.jsx`.
   - `pending` (not expired): curve + forward marker.
   - `claimable` (expired + settled, not yet claimed): note still on-chain → read params; oracle has `settlement_price` → curve + actual settlement marker + realized-payout dot. **Best case.**
   - `claimed`: note object is **deleted on chain at `claim_finalize`** → params unreadable. Show only the realized payout number already present in the table; **do not draw the curve**. Surface this state explicitly (e.g., "settled & claimed — payout X"), never a broken/empty chart.
-- The exact dapp-kit-react 2.x dynamic-field read API (`getDynamicFieldObject` / gRPC equivalent on `SuiGrpcClient`) MUST be verified against installed `node_modules` types before coding (project has repeatedly hit @mysten SDK version drift; treat any API name here as provisional).
+- **Dynamic-field read API (verified against installed node_modules, review C1-sui)**: the app's client is `SuiGrpcClient` (via `useCurrentClient`), which exposes `getDynamicField(input)` — **NOT** the JSON-RPC `getDynamicFieldObject`. Input is `{ parentId, name: DynamicFieldName { type: string, bcs: Uint8Array } }`: the key is **BCS-encoded bytes**, and `name.type` is the fully-qualified Move type `<pkg>::note::ParamsKey`. `ParamsKey` is a unit struct → BCS body is zero bytes. The response `GetDynamicFieldResponse.dynamicField.value` is **raw BCS** — deserialize with a hand-written `@mysten/sui/bcs` `bcs.struct('RangeParams', {...})` schema whose **field order exactly matches** `strategy_range_accrual.move` (`version: u8, lower: u64, upper: u64, strike_step: u64, expiry_count: u8, legs_per_expiry: u16, qty_per_leg: u64, hurdle_bps: u16`). Field-order mismatch silently yields garbled numbers — read the Move struct and lock the schema before coding (review I6-sui).
+- **State guard (review C3-sui, verified)**: indexer `settled = (a settlements row exists)`, and `NoteSettled` is emitted only in `claim_finalize` → `settled === 1` means **already claimed = note deleted on-chain**. Only attempt the dynamic-field read for `state === 'pending'` or `'claimable'`; for `'settled'` skip the read entirely and render the realized-payout number only.
 
 ## Testing
 
@@ -107,6 +108,26 @@ File: `frontend/src/MyNotes.jsx`.
   - payout = 0 below `lower`, = `qty_per_leg * legs` at/above `upper`
   - **Monkey/guard tests**: `step = 0`, `upper <= lower`, grid-misaligned `(upper-lower) % step != 0`, `legs > 128` → each throws (not silent clamp).
 - `<PayoffChart>` + integration: no unit test for SVG; verification gate is `vite build` green + **branch-wide `git diff` invariant** confirming `move/`, contract addresses, dapp-kit wiring, and existing business logic are byte-unchanged (this is a presentation feature). Live visual gate via dev-server screenshot (real browser — not ImageMagick, per lessons).
+
+## Design-review decisions (2026-06-24, sui-frontend + frontend-design/taste)
+
+Layout / composition (排版):
+- **Forward-label collision (C3-taste)**: forward label must not float over the curve. When `forward` falls in the right ~30% of the x-range (in-the-money mint), flip the label to the opposite side of its line; settlement and forward labels get vertical offset so they never share a row. Preference: render markers' labels in a thin header strip above the plot, not inside it.
+- **Band-edge gridlines (M5-taste)**: full-size chart draws exactly two faint verticals at `lower` and `upper` (the accrual band edges) — this *is* the product story. No more than two (density discipline).
+- **MyNotes expand row (I3-taste)**: detail panel is a new `<tr>` with a single `<td colSpan={4}>` spanning the full table width (not inside a status/action cell). Chart `width:100%` with `max-width:~420px`, left-aligned. Add `min-width:0` on the SVG wrapper so `.nl-card`/table `overflow:hidden` doesn't clip it (I2-sui).
+- **Confirm/Cancel hierarchy (I4-taste)**: one commit CTA only — **Confirm Mint = existing `.nl-btn--primary` pinkgold**, **Cancel = ghost `.nl-btn`**. Placed below the chart, right-aligned, matching card rhythm. Avoid two competing primaries.
+- **Reusable-manager affordance (I3-sui/I4-taste)**: on Cancel after PTB1, transition to a distinct `mintPhase = 'cancelled'` (not silent reset to `idle`); show a muted persistent note with the `mgr` object ID — "Manager kept — re-confirm anytime." Never hide live chain state.
+- **Edge-state rendering rules (I5-taste)**: (a) 1-leg note → single L-step; add baseline-zero annotation so it still reads as a payoff. (b) `legs > 24` → hide strike dots, let the gold line carry it. (c) `forward ≥ upper` (flat near-max curve) → annotate "max payout reached at forward" so the full-rectangle fill doesn't look broken.
+
+Aesthetic / brand fidelity (美感):
+- **Pearl distinctiveness (M4-taste, M1-taste)**: iridescent `--nacre` fill (above) is the highest-leverage move; optionally a 1px lighter inner highlight on the gold line ("molten edge") and strike dots as tiny pearls (subtle radial highlight). Restraint — this app is low visual-density; precision touches, not effects. Axis ticks in Martian Mono (`--font-mono`) to match the leaderboard's numeric voice.
+- **English UI copy (M2-taste)**: preview caption in English ("Payoff preview" / "You're about to mint") — the Chinese mockup string is sketch-only.
+
+Correctness (verified against installed code):
+- **`/quote` fields (C2-sui)**: `computeLadder` already returns `forward` (`price.js:32`); `qtyPerLeg` is NOT in its return → compute server-side from net principal and add both `forward` + `qtyPerLeg` (as strings) to the `quote()` response in `server.js`.
+- **BigInt math (I4-sui)**: `computePayoffCurve` keeps strike/price/qty in BigInt (oracle ticks are e9, e.g. `60000_000_000_000`); the `(upper-lower) % step` grid guard uses BigInt modulo — float conversion before the guard loses precision and lets misaligned grids pass silently. Convert to Number only at the final pixel-mapping step.
+- **Result-shape preservation (I1-sui)**: splitting `runMint` into `prepareMint`/`finalizeMint` must keep the existing `r.$kind === 'FailedTransaction'` / `r.Transaction?.digest` handling for **both** PTB results — do not regress to top-level keys.
+- **Status-label branch (M4-sui)**: `state === 'settled'` already means claimed; the payoff panel branches on it to show "Settled & Claimed — payout X dUSDC" (no chart) per §5.
 
 ## Out of scope (YAGNI)
 
@@ -118,6 +139,6 @@ File: `frontend/src/MyNotes.jsx`.
 
 ## Risks / calibration
 
-- **SDK drift** (lessons 2026-06-21): verify dapp-kit-react 2.x dynamic-field read + `SuiGrpcClient` shape against installed `.d.mts` before implementing MyNotes read; treat API names in §5 as provisional.
+- **SDK drift** (lessons 2026-06-21): resolved during review — gRPC `getDynamicField` (BCS-keyed) confirmed against installed `.d.mts` (§5). Remaining unknown: the exact `RangeParams` BCS deserialization round-trips correctly; verify with one live read of a real note before wiring the chart.
 - **Mint flow regression**: splitting `runMint` must preserve the existing PTB1→quote→PTB2 wiring exactly (only inserting a user gate). Cancel-after-PTB1 leaves a reusable manager — confirm UX communicates this.
 - **`/quote` forward field**: confirm `computeLadder` already has `forward` in scope to expose; if not, read from the oracle it already fetched.
