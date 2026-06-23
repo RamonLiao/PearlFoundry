@@ -5,11 +5,13 @@ import { runMint } from './mint.js';
 import { EXPLORER } from './config.js';
 import MyNotes from './MyNotes.jsx';
 import Leaderboard from './Leaderboard.jsx';
+import './App.css';
 
 export default function App() {
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
   const [status, setStatus] = useState('');
+  const [statusKind, setStatusKind] = useState(/** @type {''|'ok'|'err'} */ (''));
   const [busy, setBusy] = useState(false);
 
   // Shared signExec: wraps dAppKit.signAndExecuteTransaction; accepts a Transaction object.
@@ -19,33 +21,68 @@ export default function App() {
     if (!account) return;
     setBusy(true);
     setStatus('');
+    setStatusKind('');
     try {
       // Sender-assert: never sign a tx built for a different address (spec §5).
       const sender = account.address;
 
       const out = await runMint({ signExec, sender });
       setStatus(`Minted OK — ${EXPLORER}${out.mintDigest}`);
+      setStatusKind('ok');
     } catch (e) {
       // Fail loud: surface backend {error, code} verbatim; never hide PTB1-landed-but-PTB2-failed.
       setStatus(`FAILED: ${e.message}${e.code ? ` [${e.code}]` : ''}`);
+      setStatusKind('err');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: '40px auto', fontFamily: 'system-ui' }}>
-      <h1>Structured Note Factory</h1>
-      <ConnectButton />
-      <Leaderboard account={account} />
+    <div className="nl-app">
+      <header className="nl-masthead nl-section" style={{ '--i': 0 }}>
+        <img className="nl-mast-logo" src="/logo-mark-tinted.png" alt="" />
+        <div className="nl-mast-titles">
+          <span className="nl-eyebrow">Structured Note Factory · Testnet</span>
+          <h1 className="nl-mast-title">Structured Note Factory</h1>
+        </div>
+        <div className="nl-connect"><ConnectButton /></div>
+      </header>
+
+      <div className="nl-section" style={{ '--i': 1 }}>
+        <Leaderboard account={account} />
+      </div>
+
       {account && (
         <>
-          <p>Connected: {account.address}</p>
-          <button disabled={busy} onClick={onMint} aria-busy={busy}>
-            {busy ? 'Minting…' : 'Mint Range Note'}
-          </button>
-          <pre style={{ whiteSpace: 'pre-wrap', marginTop: 12 }}>{status}</pre>
-          <MyNotes account={account} signExec={signExec} />
+          <section className="nl-card nl-section" style={{ '--i': 2 }}>
+            <div className="nl-card__head">
+              <h2 className="nl-card__title">Issue a Note</h2>
+            </div>
+            <div className="nl-pill">
+              <span className="nl-pill__dot" />
+              {account.address.slice(0, 10)}…{account.address.slice(-6)}
+            </div>
+            <div>
+              <button
+                className="nl-btn nl-btn--primary"
+                disabled={busy}
+                onClick={onMint}
+                aria-busy={busy}
+              >
+                {busy ? 'Minting…' : 'Mint Range Note'}
+              </button>
+            </div>
+            {status && (
+              <pre className={`nl-status ${statusKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>
+                {statusKind === 'ok' ? '✓ ' : ''}{status}
+              </pre>
+            )}
+          </section>
+
+          <div className="nl-section" style={{ '--i': 3 }}>
+            <MyNotes account={account} signExec={signExec} />
+          </div>
         </>
       )}
     </div>
