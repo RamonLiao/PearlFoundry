@@ -2,7 +2,7 @@ import http from 'node:http';
 import { leaderboard, listNotes, pendingSettle, feeStats } from './queries.js';
 import { hexToUtf8, hexToBase64 } from './decode.js';
 import { computeQtyPerLeg } from '../pricing/qty.js';
-import { CFG } from '../integration/config.js';
+import { CFG, PKG } from '../integration/config.js';
 
 const json = (res, code, body) => {
   res.writeHead(code, { 'content-type': 'application/json' });
@@ -45,7 +45,6 @@ export function createServer(db, { client, txdeps } = {}) {
           const expiry = url.searchParams.get('expiry');
           if (!note || !expiry) return json(res, 400, { error: 'note, expiry required', code: 'BAD_PARAMS' });
           const { resolveOracle } = await import('../pricing/oracle.js');
-          const { PKG } = await import('../integration/config.js');
           // RangeParams lives as a dynamic field under the note, keyed by the unit struct note::ParamsKey.
           const dfo = await client.getDynamicFieldObject({
             parentId: note,
@@ -72,7 +71,7 @@ export function createServer(db, { client, txdeps } = {}) {
             const f = oc.data?.content?.fields;
             settlementPrice = f?.settlement_price ?? null;
             forward = f?.prices?.fields?.forward ?? null;
-          } catch (_) { /* oracle may have rolled; forward optional for the chart */ }
+          } catch (e) { console.error('[note-params] oracle read failed (forward optional):', e.message); }
           return json(res, 200, { params, forward, settlementPrice });
         }
       }
