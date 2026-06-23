@@ -47,9 +47,12 @@ function callRoute(server, method, path, body) {
 }
 
 const fakeDb = { prepare: () => ({ all: () => [], get: () => ({}) }) };
+const fakeClient = {
+  getObject: async () => ({ data: { content: { fields: { fee_bps: 30 } } } }),
+};
 const fakeTxdeps = {
   buildCreateManagerTx: ({ sender }) => ({ serialize: () => `CM:${sender}` }),
-  computeLadder: async ({ sender, mgr }) => ({ lower: 1n, upper: 2n, step: 1n, oracleId: '0xorc' }),
+  computeLadder: async ({ sender, mgr }) => ({ lower: 1n, upper: 2n, step: 1n, oracleId: '0xorc', legs: 5, forward: 95000n }),
   buildMintTx: ({ sender, mgr }) => ({ serialize: () => `MINT:${sender}:${mgr}` }),
   buildClaimTx: ({ sender, note }) => ({ serialize: () => `CLAIM:${sender}:${note}` }),
   pickDusdcCoin: async () => ({ coinId: '0xcoin', total: 1000n }),
@@ -57,29 +60,31 @@ const fakeTxdeps = {
 };
 
 test('POST /create-manager-tx returns serialized tx', async () => {
-  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
   const { status, j } = await callRoute(srv, 'POST', '/create-manager-tx', { sender: '0xS' });
   assert.equal(status, 200);
   assert.equal(j.tx, 'CM:0xS');
 });
 
 test('POST /create-manager-tx 400 on missing sender', async () => {
-  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
   const { status, j } = await callRoute(srv, 'POST', '/create-manager-tx', {});
   assert.equal(status, 400);
   assert.equal(j.code, 'BAD_PARAMS');
 });
 
 test('POST /quote returns ladder + tx', async () => {
-  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
   const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
   assert.equal(status, 200);
   assert.equal(j.oracleId, '0xorc');
   assert.equal(j.tx, 'MINT:0xS:0xM');
+  assert.ok(j.forward, 'forward present');
+  assert.ok(j.qtyPerLeg, 'qtyPerLeg present');
 });
 
 test('POST /quote omits expiry — auto-picks via pickLiveExpiry', async () => {
-  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
   const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM' });
   assert.equal(status, 200);
   assert.equal(j.oracleId, '0xorc');
@@ -87,7 +92,7 @@ test('POST /quote omits expiry — auto-picks via pickLiveExpiry', async () => {
 });
 
 test('tx route 503 when no client wired', async () => {
-  const srv = createServer(fakeDb);
+  const srv = createServer(fakeDb); // intentionally no client
   const { status } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
   assert.equal(status, 503);
 });
