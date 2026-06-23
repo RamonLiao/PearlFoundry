@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { useCurrentAccount, useDAppKit } from '@mysten/dapp-kit-react';
-import { runMint } from './mint.js';
+import { prepareMint, finalizeMint } from './mint.js';
+import { computePayoffCurve } from './payoff.js';
+import PayoffChart from './PayoffChart.jsx';
 import { EXPLORER } from './config.js';
 import MyNotes from './MyNotes.jsx';
 import Leaderboard from './Leaderboard.jsx';
@@ -15,29 +17,33 @@ export default function App() {
   const [statusKind, setStatusKind] = useState(/** @type {''|'ok'|'err'} */ (''));
   const [busy, setBusy] = useState(false);
 
+  const [mintPhase, setMintPhase] = useState('idle'); // idle|preparing|confirm|minting|done|cancelled|error
+  const [preview, setPreview] = useState(null);       // { mgr, tx, ladder, forward, qtyPerLeg, expiry }
+  const [mintErr, setMintErr] = useState(null);
+
   // Shared signExec: wraps dAppKit.signAndExecuteTransaction; accepts a Transaction object.
   const signExec = (tx) => dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-  async function onMint() {
-    if (!account) return;
-    setBusy(true);
-    setStatus('');
-    setStatusKind('');
+  async function onIssue() {
+    setMintErr(null); setMintPhase('preparing');
+    setStatus(''); setStatusKind('');
     try {
-      // Sender-assert: never sign a tx built for a different address (spec §5).
-      const sender = account.address;
+      const p = await prepareMint({ signExec, sender: account.address });
+      setPreview(p); setMintPhase('confirm');
+    } catch (e) { setMintErr(e.message); setMintPhase('error'); }
+  }
 
-      const out = await runMint({ signExec, sender });
+  async function onConfirmMint() {
+    setMintPhase('minting');
+    try {
+      const out = await finalizeMint({ signExec, tx: preview.tx, mgr: preview.mgr });
       setStatus(`Minted OK — ${EXPLORER}${out.mintDigest}`);
       setStatusKind('ok');
-    } catch (e) {
-      // Fail loud: surface backend {error, code} verbatim; never hide PTB1-landed-but-PTB2-failed.
-      setStatus(`FAILED: ${e.message}${e.code ? ` [${e.code}]` : ''}`);
-      setStatusKind('err');
-    } finally {
-      setBusy(false);
-    }
+      setMintPhase('done');
+    } catch (e) { setMintErr(e.message); setMintPhase('error'); }
   }
+
+  function onCancelMint() { setMintPhase('cancelled'); }
 
   return (
     <div className="nl-app">
@@ -88,17 +94,42 @@ export default function App() {
             <div>
               <button
                 className="nl-btn nl-btn--primary"
-                disabled={busy}
-                onClick={onMint}
-                aria-busy={busy}
+                disabled={busy || mintPhase === 'preparing' || mintPhase === 'minting'}
+                onClick={onIssue}
+                aria-busy={mintPhase === 'preparing'}
               >
                 <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 3.5c.4 3.8 1.7 5.1 5.5 5.5-3.8.4-5.1 1.7-5.5 5.5-.4-3.8-1.7-5.1-5.5-5.5 3.8-.4 5.1-1.7 5.5-5.5Z" />
                   <path d="M18.5 14.5c.2 1.6.7 2.1 2.3 2.3-1.6.2-2.1.7-2.3 2.3-.2-1.6-.7-2.1-2.3-2.3 1.6-.2 2.1-.7 2.3-2.3Z" />
                 </svg>
-                {busy ? 'Minting…' : 'Mint Range Note'}
+                {mintPhase === 'preparing' ? 'Preparing…' : 'Mint Range Note'}
               </button>
             </div>
+
+            {mintPhase === 'confirm' && preview && (() => {
+              const curve = computePayoffCurve({
+                lower: preview.ladder.lower, upper: preview.ladder.upper,
+                step: preview.ladder.step, qtyPerLeg: preview.qtyPerLeg,
+              });
+              return (
+                <div className="nl-preview">
+                  <p className="nl-cap">Payoff preview — you&apos;re about to mint</p>
+                  <PayoffChart curve={curve} forward={Number(preview.forward)} size="full" />
+                  <div className="nl-preview-actions">
+                    <button className="nl-btn" onClick={onCancelMint}>Cancel</button>
+                    <button className="nl-btn nl-btn--primary" onClick={onConfirmMint}>Confirm Mint</button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {mintPhase === 'cancelled' && (
+              <p className="nl-note">Manager kept on-chain (<code>{preview?.mgr?.slice(0, 12)}…</code>) — re-confirm anytime.
+                <button className="nl-btn" onClick={onConfirmMint}>Confirm Mint</button></p>
+            )}
+            {mintPhase === 'error' && <p className="nl-error">{mintErr}</p>}
+            {mintPhase === 'minting' && <p className="nl-note">Minting…</p>}
+
             {status && (
               <pre className={`nl-status ${statusKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>
                 {statusKind === 'ok' ? '✓ ' : ''}{status}
