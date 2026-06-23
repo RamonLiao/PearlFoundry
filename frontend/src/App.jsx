@@ -5,6 +5,7 @@ import { runMint } from './mint.js';
 import { EXPLORER } from './config.js';
 import MyNotes from './MyNotes.jsx';
 import Leaderboard from './Leaderboard.jsx';
+import Sea from './Sea.jsx';
 import './App.css';
 
 export default function App() {
@@ -40,6 +41,7 @@ export default function App() {
 
   return (
     <div className="nl-app">
+      <Sea />
       <header className="nl-masthead nl-section" style={{ '--i': 0 }}>
         <img className="nl-mast-logo" src="/logo-mark.png" alt="" />
         <div className="nl-mast-titles">
