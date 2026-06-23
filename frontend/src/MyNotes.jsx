@@ -4,6 +4,7 @@ import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { getNotes, getOracle, postTx } from './api.js';
 import { EXPLORER } from './config.js';
 import './Leaderboard.css';
+import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNotes styling resolves even if rendered standalone
 
 /**
  * MyNotes — lists the connected address's notes and allows claiming expired ones.

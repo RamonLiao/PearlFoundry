@@ -43,7 +43,7 @@ export default function App() {
       <header className="nl-masthead nl-section" style={{ '--i': 0 }}>
         <img className="nl-mast-logo" src="/logo-mark-tinted.png" alt="" />
         <div className="nl-mast-titles">
-          <span className="nl-eyebrow">Structured Note Factory · Testnet</span>
+          <span className="nl-eyebrow">Testnet · DeepBook Predict</span>
           <h1 className="nl-mast-title">Structured Note Factory</h1>
         </div>
         <div className="nl-connect"><ConnectButton /></div>
