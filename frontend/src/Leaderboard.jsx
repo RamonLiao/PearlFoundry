@@ -38,7 +38,17 @@ export default function Leaderboard({ account }) {
   return (
     <section className="nl-board">
       <header className="nl-board__head">
-        <h2 className="nl-board__title">Leaderboard</h2>
+        <h2 className="nl-board__title">
+          <span className="nl-ico">
+            <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 4h10v3.5a5 5 0 0 1-10 0Z" />
+              <path d="M7 5H4.2v1.8a3 3 0 0 0 3 3" />
+              <path d="M17 5h2.8v1.8a3 3 0 0 1-3 3" />
+              <path d="M12 12.5v3" /><path d="M8.5 20h7" /><path d="M10 20l.6-4.5M14 20l-.6-4.5" />
+            </svg>
+          </span>
+          Nacre Ledger
+        </h2>
         <button className="nl-refresh" onClick={load} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
         </button>
