@@ -94,7 +94,7 @@ export default function App() {
             <div>
               <button
                 className="nl-btn nl-btn--primary"
-                disabled={busy || mintPhase === 'preparing' || mintPhase === 'minting'}
+                disabled={busy || mintPhase === 'preparing' || mintPhase === 'minting' || mintPhase === 'confirm'}
                 onClick={onIssue}
                 aria-busy={mintPhase === 'preparing'}
               >
@@ -117,7 +117,7 @@ export default function App() {
                   <PayoffChart curve={curve} forward={Number(preview.forward)} size="full" />
                   <div className="nl-preview-actions">
                     <button className="nl-btn" onClick={onCancelMint}>Cancel</button>
-                    <button className="nl-btn nl-btn--primary" onClick={onConfirmMint}>Confirm Mint</button>
+                    <button className="nl-btn nl-btn--primary" disabled={mintPhase === 'minting'} onClick={onConfirmMint}>Confirm Mint</button>
                   </div>
                 </div>
               );
@@ -125,7 +125,7 @@ export default function App() {
 
             {mintPhase === 'cancelled' && (
               <p className="nl-note">Manager kept on-chain (<code>{preview?.mgr?.slice(0, 12)}…</code>) — re-confirm anytime.
-                <button className="nl-btn" onClick={onConfirmMint}>Confirm Mint</button></p>
+                <button className="nl-btn" disabled={mintPhase === 'minting'} onClick={onConfirmMint}>Confirm Mint</button></p>
             )}
             {mintPhase === 'error' && <p className="nl-error">{mintErr}</p>}
             {mintPhase === 'minting' && <p className="nl-note">Minting…</p>}
