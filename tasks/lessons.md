@@ -1,5 +1,11 @@
 # Lessons
 
+## 2026-06-23 — brainstorming visual companion 給 full-doc demo 要 base64 內嵌資產；redesign 的 design review 在 plan 階段抓 a11y 比實作後抓便宜
+- **背景**：Nacre Light 重設計用 brainstorming 的 visual companion 秀真實 demo（full HTML，非 fragment）。第一版 logo 用相對路徑 `<img src="logo.png">` → companion server 只 serve 最新 HTML，相對資產 404 破圖（masthead 顯示 alt「PearlFo」）。改成 base64 data-URI 內嵌（173KB）才穩。**教訓**：companion 的 full-document demo，所有圖片資產一律 base64 內嵌，別賭相對路徑能被 serve。
+- **背景2**：動畫/動態效果（氣泡、caustic、bob）在「截圖」裡本來就看不到 → 使用者回報「你講的全都沒有」。要嘛強度做到靜態也看得出立體（氣泡加白高光點+藍邊+陰影），要嘛明講「這是動態、請看 live」。**別用單張截圖判動畫。**
+- **流程價值**：2 路 design review（sui-frontend + frontend-design/taste）在 **plan 階段**（還沒寫 code）就抓到 WCAG CTA 文字對比 fail（pink-gold 末端 3.1:1）、dim text 太淡、gradient-text wordmark 在白底溶字、無 mobile masthead、ConnectButton modal 在亮頁仍暗。全 patch 進 plan 標 `/* review */` → 5 個 SDD subagent 照抄即正確，不用實作後再返工。**a11y/對比這種「紙上可判」的問題，design review 要在 plan 前跑。**
+- **SDD 純-CSS 任務的「test」**：CSS 沒 unit test → 用 `vite build` green + **branch-wide `git diff` 零-logic 不變式 gate**（證明 api/mint/config/dapp-kit/main byte-unchanged）當可驗收的 test，encode「這是純 presentation 遷移」的 why（符合 Rule 9）。final whole-branch review（opus）仍抓到 1 個 build 不會 fail 的 a11y 漏洞（logo bob 沒進 reduced-motion）——證明 build-green ≠ 規格全中。
+
 ## 2026-06-23 — 驗證視覺別只信一種工具：ImageMagick 不 render SVG gradient、playwright MCP screenshot 寫到它自己的 cwd
 - **錯誤 pattern 1**：手繪 logo SVG 用 `magick -background "#0b0d12" logo.svg out.png` 預覽，render 出近黑的形狀 → 誤判 gradient 壞掉，連改兩版。用 solid `fill="#ff00ff"` 測同一 path 才發現**幾何是對的，是 IM 內建 MSVG renderer 不支援 `<linearGradient>`/`<radialGradient>`**（會 render 成黑/透明）。瀏覽器渲染正常。
 - **錯誤 pattern 2**：playwright MCP `browser_take_screenshot` 回報「Screenshot saved ./app-full.png」但 `find /` 當下找不到 → 誤判「MCP 在隔離 sandbox、檔案取不回」，改用 computed-style 探測當 gate。**真相**：screenshot 確實寫到本機 repo root（MCP server 的 cwd 剛好＝repo root），只是我 `find` 跑得比檔案 flush 早（race）；幾分鐘後 `git status` 就看到 `app-full.png`（293KB，可直接 Read 看圖）。
