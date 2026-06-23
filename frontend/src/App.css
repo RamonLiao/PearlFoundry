@@ -1,0 +1,158 @@
+.nl-app {
+  max-width: 760px;
+  margin: 40px auto 64px;
+  padding: 0 16px;
+}
+
+/* page-load staggered section reveal */
+.nl-section {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: nl-reveal 420ms ease forwards;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+
+/* masthead */
+.nl-masthead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid transparent;
+  border-image: var(--nacre) 1;
+  margin-bottom: 28px;
+}
+.nl-mast-logo { width: 40px; height: 40px; flex: none; object-fit: contain; }
+.nl-mast-titles { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.nl-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--pearl-dim);
+}
+.nl-mast-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  margin: 0;
+  color: var(--pearl);
+}
+.nl-connect { margin-left: auto; }
+
+/* card surface (shares the visual language of .nl-board) */
+.nl-card {
+  background: var(--obsidian-raised);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 22px 24px 26px;
+  margin-top: 22px;
+}
+.nl-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid transparent;
+  border-image: var(--nacre) 1;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+.nl-card__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--pearl);
+}
+
+/* buttons */
+.nl-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--pearl-dim);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.nl-btn:hover:not(:disabled) { color: var(--pearl); border-color: rgba(242, 237, 227, 0.25); }
+.nl-btn:disabled { opacity: 0.5; cursor: default; }
+
+.nl-btn--primary {
+  color: var(--obsidian);
+  background: var(--molten);
+  border: none;
+  font-weight: 600;
+  padding: 10px 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.nl-btn--primary:hover:not(:disabled) { filter: brightness(1.06); }
+.nl-btn--primary:disabled { opacity: 0.55; }
+
+/* connected-address pill */
+.nl-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--pearl-dim);
+  background: rgba(242, 237, 227, 0.03);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 5px 12px;
+  margin-bottom: 16px;
+}
+.nl-pill__dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--nacre);
+  flex: none;
+}
+
+/* status feedback */
+.nl-status {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  margin: 14px 0 0;
+  opacity: 0;
+  transform: translateY(4px);
+  animation: nl-reveal 240ms ease forwards;
+}
+.nl-status--ok { color: var(--jade); }
+.nl-status--err { color: var(--rust); }
+
+/* MyNotes status pip */
+.nl-statuspip {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.nl-statuspip--settled { background: var(--jade); }
+.nl-statuspip--pending { background: var(--pearl-dim); opacity: 0.4; }
+.nl-statuspip--claimable {
+  background: var(--molten);
+  box-shadow: 0 0 6px rgba(245, 200, 105, 0.5);
+  animation: nl-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes nl-reveal { to { opacity: 1; transform: none; } }
+@keyframes nl-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(245, 200, 105, 0.35); }
+  50% { box-shadow: 0 0 9px rgba(245, 200, 105, 0.7); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nl-section, .nl-status { opacity: 1; transform: none; animation: none; }
+  .nl-statuspip--claimable { animation: none; }
+  .nl-btn { transition: none; }
+}
