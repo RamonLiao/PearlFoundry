@@ -122,12 +122,12 @@ export default function MyNotes({ account, signExec, dAppKit, client, sponsorAva
           // Pre-popup failures (not 403) → silently fall back to self-pay (one popup total).
           // 403 owner errors → self-pay would abort too: surface, no fallback.
           // Post-popup failures (sign/verify/execute) → surface, do NOT auto re-sign.
-          if (e.phase === 'request' && e.status !== 403) {
-            if (e.code === 'BYTE_MISMATCH') setForceSelfPay(true); // (defensive; verify-phase normally)
+          if (e?.phase === 'request' && e?.status !== 403) {
+            if (e?.code === 'BYTE_MISMATCH') setForceSelfPay(true); // (defensive; verify-phase normally)
             setClaimPhase('submitting');
             ({ digest } = await selfPayClaim(n));
           } else {
-            if (e.code === 'BYTE_MISMATCH') setForceSelfPay(true);
+            if (e?.code === 'BYTE_MISMATCH') setForceSelfPay(true);
             throw e;
           }
         }
