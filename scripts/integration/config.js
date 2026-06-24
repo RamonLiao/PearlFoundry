@@ -8,6 +8,12 @@ export const CFG = '0xc8516309c6c65dd71a910a966abb8e74284ecb49eaaae1607acbf7440f
 export const VAULT = '0x9991245eed652140437bcda579c5ff6f7f7fae13986d6145d65941abacd75c2c';
 
 export const PREDICT = '0xc8736204d12f0a7277c86388a68bf8a194b0a14c5538ad13f22cbd8e2a38028a';
+// Fully-qualified PredictManager type. The package address here is the type's ORIGINAL
+// defining id — immutable across package upgrades (unlike the runtime PREDICT id above,
+// which drifts). Used for an EXACT type check in the write-path owner guard; a suffix-only
+// match would let an attacker-deployed look-alike `predict_manager::PredictManager` pass.
+export const PREDICT_MGR_TYPE =
+  '0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138::predict_manager::PredictManager';
 export const DUSDC = '0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC';
 export const CLOCK = '0x6';
 
