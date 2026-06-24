@@ -84,3 +84,9 @@
 ## 2026-06-21 — SDD orchestration：plan 的紙上前端 code 撞 SDK 漂移時，controller 要先校準再分派
 - 8-task SDD 跑下來，前端 4 個 task（scaffold/mint/claim/auto-expiry）的 plan code 全因 dapp-kit 改版失準。**有效做法**：controller 在 Task 3 完成後，先自己撈出 2.x 的 sign API + 結果型別 + gRPC effects 形狀，寫進 ledger 的「API divergence note」，後續每個 dispatch 都帶這段 override → subagent 不用各自重新發現、也不會各寫一套。
 - **headless 先行校準**：能 dry-run 的（create_manager 物件數、live expiry 枚舉、/quote 端到端 fail-loud）controller 先跑掉，把「只能瀏覽器錢包做的」縮到最小交給 human。Task 6（live round-trip）= 純人工，其餘全自動化驗證。
+
+## 2026-06-24 — SDD fix subagent 可能「答非所問」：fixer 回報前一定查 git log 確認真的有 commit
+- **情境**：payoff diagram SDD Task 6 的 review 開出 1 Important（React `key` 該放 `<Fragment>` 不是內層 `<tr>`）+ 1 Minor（cursor）。派 haiku fix subagent 去改，它回來卻吐出一份**load-progress 式的專案進度摘要**（誤觸 session workflow？），3 個 tool call、**完全沒改檔、沒 commit**。
+- **抓到的方式**：不信 subagent 的「Done」自述，先 `git log --oneline -1`（tip 還是 c36a93d 沒動）+ `grep Fragment`（沒有）+ `git status`（working tree clean）→ 確認 fixer 根本沒做事。
+- **正確做法**：(1) **fix subagent 回報後，controller 必驗 git 真有對應 commit**（log tip 變了沒、grep 改動點），別只看它的文字回報就 mark complete——這是 SDD 「fail loud」在 controller 層的落實。(2) 連續成功幾輪後的**單一 trivial 機械 fix**（3 行內、verbatim 指定），fixer 失敗一次就**直接由 controller 改**（讀檔→Edit→build→commit），不要無限 re-dispatch 同一個會迷路的 cheap model（呼應 dev-rules「同錯 3 次停手」）。(3) cheap model 跑「多步驟 + 要讀既有檔整合」時比「純 transcription」更容易迷路；fix-in-existing-file 這類任務 floor 拉到 mid-tier 或 controller 自理。
+- **連帶**：這次也驗證了 SDD ledger + git log 是真實進度來源——subagent 的自述不可盡信，commit 才算數。
