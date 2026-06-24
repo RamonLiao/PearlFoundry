@@ -4,8 +4,16 @@ import { hexToUtf8, hexToBase64 } from './decode.js';
 import { computeQtyPerLeg } from '../pricing/qty.js';
 import { CFG, PKG } from '../integration/config.js';
 
+// Local dev dApp is served cross-origin (vite :5173 → api :8787); allow CORS so the
+// browser can reach these routes. Permissive origin is fine for a local/testnet tool.
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, POST, OPTIONS',
+  'access-control-allow-headers': 'content-type',
+};
+
 const json = (res, code, body) => {
-  res.writeHead(code, { 'content-type': 'application/json' });
+  res.writeHead(code, { 'content-type': 'application/json', ...CORS });
   res.end(JSON.stringify(body));
 };
 
@@ -20,6 +28,7 @@ export function createServer(db, { client, txdeps } = {}) {
   return http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
     const p = url.pathname;
+    if (req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
     try {
       if (req.method === 'GET') {
         if (p === '/leaderboard') return json(res, 200, leaderboard(db));
