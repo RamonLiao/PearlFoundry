@@ -12,7 +12,8 @@
 ## Blockers
 - （無）。payoff diagram + 2 個 live-run fix 已在 local `main`（tip `dd9f719`），**未 push**（等使用者）。前一 push 點 `origin/main` = `15baf13`。
 - **live-run（2026-06-24）抓到並修掉 2 個真 bug**：(1) **`/note-params` ParamsKey 編碼**：Move 空 struct 有 phantom `dummy_field: bool`，`value: {}` 被 RPC 拒(-32602)→ 改 `value: { dummy_field: false }`（commit `4150448`，live 確認 deleted note 現回乾淨 NO_PARAMS 404）。(2) **CORS**：server 從未送 `Access-Control-Allow-Origin`→ 瀏覽器擋掉所有 :8787 fetch（leaderboard/quote/note-params 全死）→ 加 CORS header + OPTIONS preflight（commit `dd9f719`，live 確認 leaderboard 載入）。
-- **仍 human-deferred（需真錢包 + alive note）**：(1) mint 卡 **live round-trip**（PTB1→payoff preview→Confirm→PTB2）；(2) MyNotes 展開 **success 路徑**（compact 圖 + claimable 結算落點）——目前 testnet 唯一 note 已 claim/刪，無 alive note 可驗 success；`/note-params` 的 dynamic-field nesting（`rp=pf.value.fields ?? pf`）success 路徑仍只靠 Sui Field 慣例，未對 live alive note 驗過。**前端 + 後端 routes 已 live 確認可達（CORS 通、leaderboard 載入）**。
+- **live mint round-trip ✅ 驗過（2026-06-24，使用者真錢包 `0xbdecf8a2…3ee01f`）**：mint 成功（tx `pd7Mjqm…`，note `0x136990dd…36d9`，16 legs alive）。**`/note-params` success 路徑 live 確認**：回真實 RangeParams（lower 62812e9/upper 62827e9/step 1e9/16 legs/qty 623125/forward 62825.3e9），證明 `rp=pf.value.fields ?? pf` nesting + dummy_field key 都對。**踩雷**：我啟的 `server.js` 只服務 HTTP **不跑 poller** → 新 note 不會自動進 db、MyNotes「No notes found」。需另跑 `node scripts/indexer/ingest.js indexer.db`（poller）才會 ingest；正式部署用 `keeper.js`（poller+watcher 合一）。
+- **仍 deferred（次要）**：MyNotes 展開的 **compact 圖實際 render** 在使用者瀏覽器（我的 playwright 無錢包連不上 MyNotes）；claimable 結算落點需等該 note 到期結算後才看得到。資料路徑全綠。
 
 ## Recently Completed
 - **2026-06-23 — Nacre Light UI 重設計 ✅ 完成、merge local `main`（merge `fcafb1f` --no-ff，build green，feature branch 已刪，未 push）**：dark→light 水底珍珠風。
