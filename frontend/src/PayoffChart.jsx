@@ -5,14 +5,16 @@ import { useId } from 'react';
  * Visual: iridescent nacre fill + molten gold step line + (sparse) strike dots + rust forward
  * marker + optional settlement marker. Honors prefers-reduced-motion (no entrance animation).
  *
- * @param {{curve: object, forward?: number, settlementPrice?: number|null, size?: 'full'|'compact'}} props
+ * @param {{curve: object, forward?: number, settlementPrice?: number|null, size?: 'full'|'compact'|'hero', animated?: boolean, illustrative?: boolean}} props
  */
-export default function PayoffChart({ curve, forward, settlementPrice = null, size = 'full' }) {
+export default function PayoffChart({ curve, forward, settlementPrice = null, size = 'full', animated = true, illustrative = false }) {
   const uid = useId();
-  const full = size === 'full';
-  const W = full ? 420 : 300;
-  const H = full ? 250 : 140;
+  const hero = size === 'hero';
+  const full = size === 'full' || hero;           // hero shares full's axis/label treatment
+  const W = hero ? 640 : full ? 420 : 300;
+  const H = hero ? 360 : full ? 250 : 140;
   const padL = full ? 50 : 20, padR = full ? 20 : 14, padT = full ? 30 : 14, padB = full ? 22 : 14;
+  const a = animated ? '' : ' nl-noanim'; // suppress when caller wants static (e.g. MyNotes rows)
   const x0 = padL, x1 = W - padR, y0 = H - padB, y1 = padT;
 
   const { points, strikes, maxPayout, legs, baseline = 0, qtyPerLeg } = curve;
@@ -50,11 +52,13 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
-      aria-label={`Payoff: ${baseline > 0 ? `floor ${fmt(baseline)} ` : ''}below ${fmt(lo)}, rising in steps to ${fmt(maxPayout)} at ${fmt(hi)}.${forward != null ? ` Forward ${fmt(forward)}.` : ''}${settlementPrice != null ? ` Settled at ${fmt(settlementPrice)}.` : ''}`}
-      style={{ display: 'block', minWidth: 0, maxWidth: full ? 480 : 420 }}>
+      aria-label={illustrative
+        ? 'Illustrative Range Accrual payoff shape — connect a wallet and quote for your own numbers.'
+        : `Payoff: ${baseline > 0 ? `floor ${fmt(baseline)} ` : ''}below ${fmt(lo)}, rising in steps to ${fmt(maxPayout)} at ${fmt(hi)}.${forward != null ? ` Forward ${fmt(forward)}.` : ''}${settlementPrice != null ? ` Settled at ${fmt(settlementPrice)}.` : ''}`}
+      style={{ display: 'block', minWidth: 0, maxWidth: hero ? 'none' : full ? 480 : 420 }}>
       <defs>
         {/* Real --nacre 4-stop iridescent sweep (theme.css), low opacity */}
-        <linearGradient id={`nacre-${uid}`} x1="0" y1="1" x2="1" y2="0">
+        <linearGradient id={`nacre-${uid}`} x1="0" y1="1" x2="1" y2="0" className={`nl-shimmerstops${a}`}>
           <stop offset="0" stopColor="#cdeadf" stopOpacity="0.12" />
           <stop offset="0.4" stopColor="#d7cef2" stopOpacity="0.30" />
           <stop offset="0.7" stopColor="#f8ddc9" stopOpacity="0.40" />
@@ -71,13 +75,17 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
       {full && <line x1={x0} y1={y1} x2={x0} y2={y0} stroke="var(--chart-axis)" />}
 
       {/* fill + step line */}
-      <polygon points={area.join(' ')} fill={`url(#nacre-${uid})`} />
-      <polyline points={line.join(' ')} fill="none" stroke="var(--molten-end)" strokeWidth={full ? 2.4 : 2} strokeLinejoin="round" />
+      <polygon className={`nl-fillgate${a}`} points={area.join(' ')} fill={`url(#nacre-${uid})`} />
+      <polyline className={`nl-draw${a}`} points={line.join(' ')} fill="none" stroke="var(--molten-end)" strokeWidth={full ? 2.4 : 2} strokeLinejoin="round" />
 
       {/* strike dots (hidden when crowded) */}
-      {showDots && strikes.map((s, k) => (
-        <circle key={k} cx={px(s)} cy={py(baseline + qtyPerLeg * (k + 1))} r={full ? 2.6 : 2} fill="var(--molten-end)" />
-      ))}
+      {showDots && (
+        <g className={`nl-dotgate${a}`}>
+          {strikes.map((s, k) => (
+            <circle key={k} cx={px(s)} cy={py(baseline + qtyPerLeg * (k + 1))} r={full ? 2.6 : 2} fill="var(--molten-end)" />
+          ))}
+        </g>
+      )}
 
       {/* forward marker */}
       {fwdX != null && <>

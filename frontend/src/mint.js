@@ -8,8 +8,8 @@ import { postTx } from './api.js';
  * @param {{ sender: string, mgr: string }} args
  */
 export async function quoteMint({ sender, mgr }) {
-  const { tx, ladder, forward, qtyPerLeg, expiry, leftover } = await postTx('/quote', { sender, mgr });
-  return { mgr, tx, ladder, forward, qtyPerLeg, expiry, leftover };
+  const { tx, ladder, forward, qtyPerLeg, expiry, leftover, notional } = await postTx('/quote', { sender, mgr });
+  return { mgr, tx, ladder, forward, qtyPerLeg, expiry, leftover, notional };
 }
 
 /**
