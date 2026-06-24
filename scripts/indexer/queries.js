@@ -45,3 +45,7 @@ export function pendingUnnotified(db, nowMs) {
     WHERE s.note_id IS NULL AND x.note_id IS NULL
       AND CAST(n.expiry_ts_ms AS INTEGER) < @now`).all({ now: Number(nowMs) });
 }
+
+export function noteById(db, noteId) {
+  return db.prepare(`SELECT * FROM notes WHERE note_id = ?`).get(noteId);
+}

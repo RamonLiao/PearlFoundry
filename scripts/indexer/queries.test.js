@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb, ingestPage, markNotified } from './db.js';
-import { leaderboard, listNotes, pendingSettle, feeStats, pendingUnnotified } from './queries.js';
+import { leaderboard, listNotes, pendingSettle, feeStats, pendingUnnotified, noteById } from './queries.js';
 
 function seed() {
   const db = openDb();
@@ -61,4 +61,11 @@ test('pendingUnnotified excludes already-notified notes', () => {
 
 test('pendingUnnotified still excludes settled and not-yet-expired (same as pendingSettle)', () => {
   assert.equal(pendingUnnotified(seed(), 400).length, 0); // 0xn3 expiry 500 not passed
+});
+
+test('noteById returns the row incl tx_digest, undefined when absent', () => {
+  const db = seed();
+  const row = noteById(db, '0xn1');
+  assert.equal(row.tx_digest, 'a1');
+  assert.equal(noteById(db, '0xMISSING'), undefined);
 });
