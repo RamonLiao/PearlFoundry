@@ -21,7 +21,9 @@ test('buildMintTx: 3 moveCalls (begin/add/finalize) + a splitCoins', () => {
     step: 100000000000n, expiryTotal: 1 });
   const d = tx.getData();
   assert.equal(d.sender, SENDER);
-  assert.ok(d.gasData.budget);
+  // gas left UNSET so dapp-kit dry-run-estimates at sign time (avoids over-reserving SUI →
+  // InsufficientGas on low-balance wallets). The CLI mint.js pins its own budget separately.
+  assert.ok(!d.gasData.budget, 'mint tx must not pin a gas budget');
   const fns = d.commands.filter(c => c.MoveCall).map(c => c.MoveCall.function);
   assert.deepEqual(fns, ['mint_begin', 'mint_add_expiry', 'mint_finalize']);
   assert.ok(d.commands.some(c => c.SplitCoins));

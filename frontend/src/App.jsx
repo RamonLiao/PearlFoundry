@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
-import { useCurrentAccount, useDAppKit } from '@mysten/dapp-kit-react';
-import { prepareMint, finalizeMint } from './mint.js';
+import { useCurrentAccount, useDAppKit, useCurrentClient } from '@mysten/dapp-kit-react';
+import { prepareMint, finalizeMint, quoteMint } from './mint.js';
+import { isValidSuiObjectId } from '@mysten/sui/utils';
+import { readPending, savePending, clearPending } from './pendingMint.js';
 import { computePayoffCurve } from './payoff.js';
 import PayoffChart from './PayoffChart.jsx';
 import { EXPLORER } from './config.js';
@@ -13,6 +15,7 @@ import './App.css';
 export default function App() {
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
+  const client = useCurrentClient();
   const [status, setStatus] = useState('');
   const [statusKind, setStatusKind] = useState(/** @type {''|'ok'|'err'} */ (''));
   const [busy, setBusy] = useState(false);
@@ -20,24 +23,62 @@ export default function App() {
   const [mintPhase, setMintPhase] = useState('idle'); // idle|preparing|confirm|minting|done|cancelled|error
   const [preview, setPreview] = useState(null);       // { mgr, tx, ladder, forward, qtyPerLeg, expiry }
   const [mintErr, setMintErr] = useState(null);
+  const [txUrl, setTxUrl] = useState('');
+  const [pending, setPending] = useState(null); // orphaned-manager record from a prior refresh
 
   // Shared signExec: wraps dAppKit.signAndExecuteTransaction; accepts a Transaction object.
   const signExec = (tx) => dAppKit.signAndExecuteTransaction({ transaction: tx });
 
+  // On connect / account switch, surface any manager left pending by a refresh between PTB1 and PTB2.
+  useEffect(() => {
+    setPending(account ? readPending(account.address) : null);
+  }, [account?.address]);
+
   async function onIssue() {
     setMintErr(null); setMintPhase('preparing');
-    setStatus(''); setStatusKind('');
+    setStatus(''); setStatusKind(''); setTxUrl('');
     try {
-      const p = await prepareMint({ signExec, sender: account.address });
+      // Persist the manager id the instant PTB1 lands so a refresh mid-quote can resume it.
+      const p = await prepareMint({ signExec, sender: account.address, client,
+        onManager: (mgr) => savePending(account.address, mgr) });
+      savePending(account.address, p.mgr, p.expiry); // refresh ts + record expiry now that we have it
+      setPending(null);
       setPreview(p); setMintPhase('confirm');
     } catch (e) { setMintErr(e.message); setMintPhase('error'); }
+  }
+
+  // Resume a pending manager after a refresh: re-/quote (the cached ladder would be stale) then
+  // drop straight into the confirm preview. No new manager is created.
+  async function onResume() {
+    // localStorage is user-tamperable; reject a malformed id before it ever reaches /quote.
+    // (Authoritative mgr→owner / mintable-state checks remain the backend's job.)
+    if (!isValidSuiObjectId(pending.mgr)) {
+      clearPending(account.address); setPending(null);
+      setMintErr('Stored manager id is malformed — discarded. Please mint again.');
+      setMintPhase('error');
+      return;
+    }
+    setMintErr(null); setMintPhase('preparing');
+    setStatus(''); setStatusKind(''); setTxUrl('');
+    try {
+      const p = await quoteMint({ sender: account.address, mgr: pending.mgr });
+      setPending(null);
+      setPreview(p); setMintPhase('confirm');
+    } catch (e) { setMintErr(e.message); setMintPhase('error'); }
+  }
+
+  function onDiscardPending() {
+    clearPending(account.address);
+    setPending(null);
   }
 
   async function onConfirmMint() {
     setMintPhase('minting');
     try {
       const out = await finalizeMint({ signExec, tx: preview.tx, mgr: preview.mgr });
-      setStatus(`Minted OK — ${EXPLORER}${out.mintDigest}`);
+      clearPending(account.address); // minted — manager is consumed, no longer pending
+      setStatus('Minted OK');
+      setTxUrl(`${EXPLORER}${out.mintDigest}`);
       setStatusKind('ok');
       setMintPhase('done');
     } catch (e) { setMintErr(e.message); setMintPhase('error'); }
@@ -87,16 +128,17 @@ export default function App() {
                 Issue a Note
               </h2>
             </div>
-            <div className="nl-pill">
-              <span className="nl-pill__dot" />
-              {account.address.slice(0, 10)}…{account.address.slice(-6)}
-            </div>
-            <div>
+            <div className="nl-issue-row">
+              <div className="nl-pill">
+                <span className="nl-pill__dot" />
+                {account.address.slice(0, 10)}…{account.address.slice(-6)}
+              </div>
               <button
                 className="nl-btn nl-btn--primary"
-                disabled={busy || mintPhase === 'preparing' || mintPhase === 'minting' || mintPhase === 'confirm'}
+                disabled={busy || !!pending || mintPhase === 'preparing' || mintPhase === 'minting' || mintPhase === 'confirm'}
                 onClick={onIssue}
                 aria-busy={mintPhase === 'preparing'}
+                title={pending ? 'Resolve the pending mint below first' : undefined}
               >
                 <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 3.5c.4 3.8 1.7 5.1 5.5 5.5-3.8.4-5.1 1.7-5.5 5.5-.4-3.8-1.7-5.1-5.5-5.5 3.8-.4 5.1-1.7 5.5-5.5Z" />
@@ -106,10 +148,24 @@ export default function App() {
               </button>
             </div>
 
+            {pending && mintPhase !== 'confirm' && mintPhase !== 'preparing' && mintPhase !== 'minting' && (
+              <div className="nl-resume">
+                <p className="nl-note">
+                  A manager from an earlier session is waiting (<code>{pending.mgr.slice(0, 12)}…</code>) — its mint never finished.
+                  Resume to re-quote and complete it, or discard to ignore it.
+                </p>
+                <div className="nl-preview-actions">
+                  <button className="nl-btn" onClick={onDiscardPending}>Discard</button>
+                  <button className="nl-btn nl-btn--primary" onClick={onResume}>Resume mint</button>
+                </div>
+              </div>
+            )}
+
             {mintPhase === 'confirm' && preview && (() => {
               const curve = computePayoffCurve({
                 lower: preview.ladder.lower, upper: preview.ladder.upper,
                 step: preview.ladder.step, qtyPerLeg: preview.qtyPerLeg,
+                leftover: preview.leftover ?? 0,
               });
               return (
                 <div className="nl-preview">
@@ -133,6 +189,7 @@ export default function App() {
             {status && (
               <pre className={`nl-status ${statusKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>
                 {statusKind === 'ok' ? '✓ ' : ''}{status}
+                {txUrl && <>{'\n'}<a className="nl-txlink" href={txUrl} target="_blank" rel="noreferrer">{txUrl} ↗</a></>}
               </pre>
             )}
           </section>

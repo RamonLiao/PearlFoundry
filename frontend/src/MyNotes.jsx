@@ -4,7 +4,14 @@ import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { getNotes, getOracle, getNoteParams, postTx } from './api.js';
 import { computePayoffCurve } from './payoff.js';
 import PayoffChart from './PayoffChart.jsx';
-import { EXPLORER } from './config.js';
+import { EXPLORER, EXPLORER_OBJ } from './config.js';
+
+const DUSDC = 1_000_000; // 6 decimals
+// Oracle is keyed by the UNDERLYING price asset (registry::OracleCreated.underlying_asset),
+// NOT the product type. n.strategy decodes to "range_accrual" (the product), so passing it as
+// the oracle asset fails resolveOracle ("no oracle for asset=range_accrual"). Underlying is BTC
+// for every note in this hackathon build.
+const UNDERLYING = 'BTC';
 import './Leaderboard.css';
 import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNotes styling resolves even if rendered standalone
 
@@ -23,6 +30,7 @@ export default function MyNotes({ account, signExec }) {
   const [notes, setNotes] = useState([]);
   const [msg, setMsg] = useState('');
   const [msgKind, setMsgKind] = useState(/** @type {''|'ok'|'err'} */ (''));
+  const [claimUrl, setClaimUrl] = useState('');
   const [claiming, setClaiming] = useState(/** @type {string|null} */ (null));
   const [expanded, setExpanded] = useState(null);     // note_id currently open
   const [paramsCache, setParamsCache] = useState({}); // note_id -> { curve, forward, settlementPrice } | { error }
@@ -32,10 +40,10 @@ export default function MyNotes({ account, signExec }) {
     setExpanded(n.note_id);
     if (paramsCache[n.note_id]) return;
     try {
-      const asset = n.strategy || 'BTC';
-      const { params, forward, settlementPrice } = await getNoteParams(n.note_id, asset, n.expiry_ts_ms);
+      const { params, forward, settlementPrice, leftover } = await getNoteParams(n.note_id, UNDERLYING, n.expiry_ts_ms);
       const curve = computePayoffCurve({
         lower: params.lower, upper: params.upper, step: params.strike_step, qtyPerLeg: params.qty_per_leg,
+        leftover: leftover ?? 0,
       });
       setParamsCache((c) => ({ ...c, [n.note_id]: {
         curve, forward: forward != null ? Number(forward) : undefined,
@@ -64,10 +72,10 @@ export default function MyNotes({ account, signExec }) {
     setClaiming(n.note_id);
     setMsg('');
     setMsgKind('');
+    setClaimUrl('');
     try {
-      // oracle_id not stored in indexer; resolve from (asset, expiry) at claim time.
-      const asset = n.strategy || 'BTC';
-      const oracle = await getOracle(asset, n.expiry_ts_ms);
+      // oracle_id not stored in indexer; resolve from (underlying asset, expiry) at claim time.
+      const oracle = await getOracle(UNDERLYING, n.expiry_ts_ms);
 
       const { tx: txJson } = await postTx('/claim-tx', {
         sender: account.address,
@@ -86,7 +94,8 @@ export default function MyNotes({ account, signExec }) {
       const digest = r.Transaction?.digest;
       if (!digest) throw new Error('Claim returned no digest — status unknown, treat as NOT completed');
 
-      setMsg(`Claimed ${EXPLORER}${digest}`);
+      setMsg('Claimed');
+      setClaimUrl(`${EXPLORER}${digest}`);
       setMsgKind('ok');
       // Claim deletes the soulbound note on-chain (tx already final — signExec resolves
       // post-execution). Optimistically drop it locally instead of re-querying: the off-chain
@@ -137,8 +146,10 @@ export default function MyNotes({ account, signExec }) {
               const state = n.settled ? 'settled' : expired ? 'claimable' : 'pending';
               return (
                 <Fragment key={n.note_id}>
-                  <tr className={`nl-row${state !== 'settled' ? ' nl-row--expandable' : ''}`} style={{ '--i': i }} onClick={() => state !== 'settled' && toggleExpand(n)}>
-                    <td className="nl-td" title={n.note_id}>{n.note_id.slice(0, 12)}…</td>
+                  <tr className={`nl-row nl-row--expandable`} style={{ '--i': i }} onClick={() => toggleExpand(n)}>
+                    <td className="nl-td" title={n.note_id}>
+                      <a className="nl-hashlink" href={`${EXPLORER_OBJ}${n.note_id}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{n.note_id.slice(0, 12)}…</a>
+                    </td>
                     <td className="nl-td">{new Date(Number(n.expiry_ts_ms)).toISOString().slice(0, 16).replace('T', ' ')}</td>
                     <td className="nl-td">
                       <span className={`nl-statuspip nl-statuspip--${state}`} />
@@ -156,10 +167,15 @@ export default function MyNotes({ account, signExec }) {
                             {isClaiming ? 'Claiming…' : 'Claim'}
                           </button>
                         )
-                        : <span style={{ color: 'var(--pearl-dim)' }}>—</span>}
+                        : state === 'settled' && n.payout != null
+                          ? (() => {
+                              const pnl = (Number(n.payout) - Number(n.notional)) / DUSDC;
+                              return <span className={`nl-pnl ${pnl >= 0 ? 'is-pos' : 'is-neg'}`} title="Realized PnL (payout − notional)">{pnl > 0 ? '+' : ''}{pnl.toFixed(2)} dUSDC</span>;
+                            })()
+                          : <span style={{ color: 'var(--pearl-dim)' }}>—</span>}
                     </td>
                   </tr>
-                  {expanded === n.note_id && state !== 'settled' && (
+                  {expanded === n.note_id && (
                     <tr className="nl-detailrow">
                       <td colSpan={4} className="nl-detail">
                         {paramsCache[n.note_id]?.error
@@ -167,7 +183,7 @@ export default function MyNotes({ account, signExec }) {
                           : paramsCache[n.note_id]?.curve
                             ? <PayoffChart curve={paramsCache[n.note_id].curve}
                                 forward={paramsCache[n.note_id].forward}
-                                settlementPrice={paramsCache[n.note_id].settlementPrice} size="compact" />
+                                settlementPrice={paramsCache[n.note_id].settlementPrice} size="full" />
                             : <p className="nl-note">Loading payoff…</p>}
                       </td>
                     </tr>
@@ -179,7 +195,12 @@ export default function MyNotes({ account, signExec }) {
         </table>
       )}
 
-      {msg && <pre className={`nl-status ${msgKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>{msgKind === 'ok' ? '✓ ' : ''}{msg}</pre>}
+      {msg && (
+        <pre className={`nl-status ${msgKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>
+          {msgKind === 'ok' ? '✓ ' : ''}{msg}
+          {claimUrl && <>{'\n'}<a className="nl-txlink" href={claimUrl} target="_blank" rel="noreferrer">{claimUrl} ↗</a></>}
+        </pre>
+      )}
     </section>
   );
 }

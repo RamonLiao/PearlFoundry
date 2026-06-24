@@ -20,7 +20,7 @@ export function listNotes(db, { issuer, isPublic } = {}) {
   if (isPublic != null) { where.push('n.is_public = @isPublic'); params.isPublic = isPublic ? 1 : 0; }
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
   return db.prepare(`
-    SELECT n.*, (s.note_id IS NOT NULL) AS settled
+    SELECT n.*, (s.note_id IS NOT NULL) AS settled, s.payout AS payout, s.perf_fee AS perf_fee
     FROM notes n LEFT JOIN settlements s USING(note_id) ${clause}`).all(params);
 }
 
@@ -44,4 +44,8 @@ export function pendingUnnotified(db, nowMs) {
     LEFT JOIN notified x USING(note_id)
     WHERE s.note_id IS NULL AND x.note_id IS NULL
       AND CAST(n.expiry_ts_ms AS INTEGER) < @now`).all({ now: Number(nowMs) });
+}
+
+export function noteById(db, noteId) {
+  return db.prepare(`SELECT * FROM notes WHERE note_id = ?`).get(noteId);
 }

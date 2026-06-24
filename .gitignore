@@ -30,3 +30,6 @@ frontend/dist/
 # playwright MCP scratch
 .playwright-mcp/
 .superpowers/
+
+# local payoff verification screenshots (working scratch)
+payoff-live*.png
