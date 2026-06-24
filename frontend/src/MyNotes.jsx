@@ -146,7 +146,7 @@ export default function MyNotes({ account, signExec }) {
               const state = n.settled ? 'settled' : expired ? 'claimable' : 'pending';
               return (
                 <Fragment key={n.note_id}>
-                  <tr className={`nl-row${state !== 'settled' ? ' nl-row--expandable' : ''}`} style={{ '--i': i }} onClick={() => state !== 'settled' && toggleExpand(n)}>
+                  <tr className={`nl-row nl-row--expandable`} style={{ '--i': i }} onClick={() => toggleExpand(n)}>
                     <td className="nl-td" title={n.note_id}>
                       <a className="nl-hashlink" href={`${EXPLORER_OBJ}${n.note_id}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{n.note_id.slice(0, 12)}…</a>
                     </td>
@@ -175,7 +175,7 @@ export default function MyNotes({ account, signExec }) {
                           : <span style={{ color: 'var(--pearl-dim)' }}>—</span>}
                     </td>
                   </tr>
-                  {expanded === n.note_id && state !== 'settled' && (
+                  {expanded === n.note_id && (
                     <tr className="nl-detailrow">
                       <td colSpan={4} className="nl-detail">
                         {paramsCache[n.note_id]?.error

@@ -50,7 +50,7 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
-      aria-label={`Payoff: floor ${fmt(baseline)} below ${fmt(lo)}, rising in steps to ${fmt(maxPayout)} at ${fmt(hi)}.${forward != null ? ` Forward ${fmt(forward)}.` : ''}${settlementPrice != null ? ` Settled at ${fmt(settlementPrice)}.` : ''}`}
+      aria-label={`Payoff: ${baseline > 0 ? `floor ${fmt(baseline)} ` : ''}below ${fmt(lo)}, rising in steps to ${fmt(maxPayout)} at ${fmt(hi)}.${forward != null ? ` Forward ${fmt(forward)}.` : ''}${settlementPrice != null ? ` Settled at ${fmt(settlementPrice)}.` : ''}`}
       style={{ display: 'block', minWidth: 0, maxWidth: full ? 480 : 420 }}>
       <defs>
         {/* Real --nacre 4-stop iridescent sweep (theme.css), low opacity */}
