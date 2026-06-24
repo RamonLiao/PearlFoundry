@@ -45,10 +45,12 @@ export function createServer(db, { client, txdeps } = {}) {
           const expiry = url.searchParams.get('expiry');
           if (!note || !expiry) return json(res, 400, { error: 'note, expiry required', code: 'BAD_PARAMS' });
           const { resolveOracle } = await import('../pricing/oracle.js');
-          // RangeParams lives as a dynamic field under the note, keyed by the unit struct note::ParamsKey.
+          // RangeParams lives as a dynamic field under the note, keyed by note::ParamsKey.
+          // Move gives empty structs a phantom `dummy_field: bool` — the JSON-RPC name value
+          // must carry it (verified via live calibration: `value: {}` errors -32602).
           const dfo = await client.getDynamicFieldObject({
             parentId: note,
-            name: { type: `${PKG}::note::ParamsKey`, value: {} },
+            name: { type: `${PKG}::note::ParamsKey`, value: { dummy_field: false } },
           });
           const pf = dfo.data?.content?.fields;
           // df value object wraps the stored struct under `.value.fields` (JSON-RPC layout for
