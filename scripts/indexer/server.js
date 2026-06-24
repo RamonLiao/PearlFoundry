@@ -2,7 +2,7 @@ import http from 'node:http';
 import { leaderboard, listNotes, pendingSettle, feeStats, noteById } from './queries.js';
 import { hexToUtf8, hexToBase64 } from './decode.js';
 import { computeQtyPerLeg } from '../pricing/qty.js';
-import { CFG, PKG } from '../integration/config.js';
+import { CFG, PKG, PREDICT_MGR_TYPE } from '../integration/config.js';
 import { deriveLeftover, deriveParamsFromEvents } from './leftover.js';
 
 // Local dev dApp is served cross-origin (vite :5173 → api :8787); allow CORS so the
@@ -24,6 +24,31 @@ const decodeNote = (r) => ({ ...r,
 const readBody = (req) => new Promise((resolve) => {
   let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => { try { resolve(b ? JSON.parse(b) : {}); } catch { resolve(null); } });
 });
+
+// Deterministic Sui-address normalize: lowercase, strip 0x, left-pad to 32 bytes.
+// Throws BAD_PARAMS on malformed input so a bad address fails loud (400), not a 500.
+const httpErr = (code, status, msg) => Object.assign(new Error(msg), { code, status });
+const normAddr = (a) => {
+  const h = String(a).toLowerCase().replace(/^0x/, '');
+  if (!/^[0-9a-f]{1,64}$/.test(h)) throw httpErr('BAD_PARAMS', 400, `malformed address: ${a}`);
+  return `0x${h.padStart(64, '0')}`;
+};
+
+// Write-path auth guard: explicitly verify the client-supplied `mgr` is a real PredictManager
+// owned by `sender`, up front and cheaply — before the expensive ladder probe + dry-run. The
+// on-chain owner-gate alone would reject foreign managers, but only deep inside that probe
+// (DoS surface) and with an opaque abort. EXACT type match (not suffix) so an attacker-deployed
+// look-alike `predict_manager::PredictManager` can't pass. See tests for the threat cases.
+async function assertManagerOwner(client, mgr, sender) {
+  const want = normAddr(sender);
+  if (!/^0x[0-9a-f]{1,64}$/i.test(String(mgr))) throw httpErr('BAD_MGR', 400, `malformed mgr id: ${mgr}`);
+  const obj = await client.getObject({ id: mgr, options: { showType: true, showContent: true } });
+  if (obj?.data?.type !== PREDICT_MGR_TYPE)
+    throw httpErr('BAD_MGR', 400, 'mgr is not a PredictManager object');
+  const owner = obj?.data?.content?.fields?.owner;
+  if (!owner || normAddr(owner) !== want)
+    throw httpErr('MGR_NOT_OWNED', 403, 'manager is not owned by sender');
+}
 
 export function createServer(db, { client, txdeps } = {}) {
   return http.createServer(async (req, res) => {
@@ -118,18 +143,21 @@ export function createServer(db, { client, txdeps } = {}) {
         }
         if (p === '/quote') {
           if (!body.sender || !body.mgr) return json(res, 400, { error: 'sender, mgr required', code: 'BAD_PARAMS' });
+          await assertManagerOwner(client, body.mgr, body.sender);
           const q = await quote(client, txdeps, body);
           return json(res, q.status ?? 200, q.body ?? q);
         }
         if (p === '/claim-tx') {
           if (!body.sender || !body.note || !body.mgr || !body.oracle)
             return json(res, 400, { error: 'sender, note, mgr, oracle required', code: 'BAD_PARAMS' });
+          await assertManagerOwner(client, body.mgr, body.sender);
           return json(res, 200, { tx: txdeps.buildClaimTx(body).serialize() });
         }
       }
       return json(res, 404, { error: 'not found' });
     } catch (e) {
-      return json(res, e.code === 'NO_DUSDC' ? 400 : 500, { error: e.message, code: e.code ?? 'INTERNAL' });
+      const status = e.status ?? (e.code === 'NO_DUSDC' ? 400 : 500);
+      return json(res, status, { error: e.message, code: e.code ?? 'INTERNAL' });
     }
   });
 }

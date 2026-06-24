@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb, ingestPage } from './db.js';
 import { createServer } from './server.js';
+import { PREDICT_MGR_TYPE } from '../integration/config.js';
 
 function withServer(db, fn) {
   return new Promise((resolve, reject) => {
@@ -56,10 +57,41 @@ const fakeDb = { prepare: (sql) => ({
 const CFG_ID = '0xc8516309c6c65dd71a910a966abb8e74284ecb49eaaae1607acbf7440f249351';
 const FAKE_ORACLE_ID = '0xoracle';
 
+// Valid 0x+64hex ids for write-path auth tests. SENDER owns MGR; OTHER does not.
+const SENDER = '0x' + '5'.repeat(64);
+const OTHER = '0x' + '7'.repeat(64);
+const MGR = '0x' + 'a'.repeat(64);
+// Manager whose owner has leading zeros — to test address-form normalization.
+const MGR_LZ = '0x' + 'c'.repeat(64);
+const LZ_OWNER = '0x' + '0'.repeat(4) + '5'.repeat(60); // padded, 64 hex
+const FOREIGN_MGR = '0x' + 'e'.repeat(64);   // look-alike type, wrong package addr
+const NO_OWNER_MGR = '0x' + 'f'.repeat(64);  // real type, missing owner field
+const DELETED_MGR = '0x' + '1'.repeat(64);   // getObject returns no data
+const MGR_TYPE = PREDICT_MGR_TYPE; // single source of truth — no drift from production config
+
 const fakeClient = {
   getObject: async ({ id }) => {
     if (id === CFG_ID) {
       return { data: { content: { fields: { fee_bps: 30 } } } };
+    }
+    if (id === MGR) {
+      return { data: { type: MGR_TYPE, content: { fields: { owner: SENDER } } } };
+    }
+    if (id === MGR_LZ) {
+      return { data: { type: MGR_TYPE, content: { fields: { owner: LZ_OWNER } } } };
+    }
+    // attacker-deployed look-alike: same module::struct, different (wrong) package address
+    if (id === FOREIGN_MGR) {
+      return { data: { type: '0x' + 'd'.repeat(64) + '::predict_manager::PredictManager',
+        content: { fields: { owner: SENDER } } } };
+    }
+    // real manager type but no owner field present
+    if (id === NO_OWNER_MGR) {
+      return { data: { type: MGR_TYPE, content: { fields: {} } } };
+    }
+    // deleted / non-existent object
+    if (id === DELETED_MGR) {
+      return { data: null, error: { code: 'deleted' } };
     }
     // oracle object shape
     return { data: { content: { fields: {
@@ -132,17 +164,17 @@ test('POST /create-manager-tx 400 on missing sender', async () => {
 
 test('POST /quote returns ladder + tx', async () => {
   const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
-  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: SENDER, mgr: MGR, expiry: '1750000000' });
   assert.equal(status, 200);
   assert.equal(j.oracleId, '0xorc');
-  assert.equal(j.tx, 'MINT:0xS:0xM');
+  assert.equal(j.tx, `MINT:${SENDER}:${MGR}`);
   assert.equal(j.forward, '95000');
   assert.ok(BigInt(j.qtyPerLeg) > 0n);
 });
 
 test('POST /quote omits expiry — auto-picks via pickLiveExpiry', async () => {
   const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
-  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM' });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: SENDER, mgr: MGR });
   assert.equal(status, 200);
   assert.equal(j.oracleId, '0xorc');
   assert.equal(j.expiry, '1750000000');
@@ -150,27 +182,27 @@ test('POST /quote omits expiry — auto-picks via pickLiveExpiry', async () => {
 
 test('tx route 503 when no client wired', async () => {
   const srv = createServer(fakeDb); // intentionally no client
-  const { status } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
+  const { status } = await callRoute(srv, 'POST', '/quote', { sender: SENDER, mgr: MGR, expiry: '1750000000' });
   assert.equal(status, 503);
 });
 
 test('POST /quote returns leftover from mint dry-run', async () => {
   const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
-  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: SENDER, mgr: MGR, expiry: '1750000000' });
   assert.equal(status, 200);
   assert.equal(j.leftover, '9370000'); // 9970000 − (300000+300000)
 });
 
 test('POST /quote echoes notional so the metric rail can show it', async () => {
   const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
-  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM' });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: SENDER, mgr: MGR });
   assert.equal(j.notional, '10000000'); // default notional, base units (10 dUSDC)
 });
 
 test('POST /quote 502 when mint dry-run fails', async () => {
   const bad = { ...fakeClient, dryRunTransactionBlock: async () => ({ effects: { status: { status: 'failure', error: 'MoveAbort … 7' } }, events: [] }) };
   const srv = createServer(fakeDb, { client: bad, txdeps: fakeTxdeps });
-  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: SENDER, mgr: MGR, expiry: '1750000000' });
   assert.equal(status, 502);
   assert.equal(j.code, 'QUOTE_DRYRUN_FAILED');
 });
@@ -209,4 +241,95 @@ test('GET /note-params 404 when note row has no tx_digest', async () => {
   const { status, j } = await callRoute(srv, 'GET', '/note-params?note=0xX&asset=BTC&expiry=1750000000', null);
   assert.equal(status, 404);
   assert.equal(j.code, 'NO_MINT_TX');
+});
+
+// --- write-path auth guard (mgr → sender) ---
+
+test('POST /quote 403 when mgr not owned by sender', async () => {
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: OTHER, mgr: MGR, expiry: '1750000000' });
+  assert.equal(status, 403);
+  assert.equal(j.code, 'MGR_NOT_OWNED');
+});
+
+test('POST /quote ownership check runs BEFORE the expensive ladder probe', async () => {
+  // computeLadder must never be reached for a foreign manager (DoS / fail-fast guarantee).
+  let probed = false;
+  const txdeps = { ...fakeTxdeps, computeLadder: async (a) => { probed = true; return fakeTxdeps.computeLadder(a); } };
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps });
+  const { status } = await callRoute(srv, 'POST', '/quote', { sender: OTHER, mgr: MGR, expiry: '1750000000' });
+  assert.equal(status, 403);
+  assert.equal(probed, false);
+});
+
+test('POST /quote 400 BAD_MGR when mgr is not a PredictManager', async () => {
+  // getObject returns the oracle (non-manager) shape for an unknown id → wrong type.
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const wrongType = '0x' + 'b'.repeat(64);
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: SENDER, mgr: wrongType, expiry: '1750000000' });
+  assert.equal(status, 400);
+  assert.equal(j.code, 'BAD_MGR');
+});
+
+test('POST /quote 400 BAD_MGR when mgr id is malformed', async () => {
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: SENDER, mgr: '0xnothex', expiry: '1750000000' });
+  assert.equal(status, 400);
+  assert.equal(j.code, 'BAD_MGR');
+});
+
+test('POST /quote owner match is address-form insensitive (unpadded sender)', async () => {
+  // wallet may send an unpadded sender; guard normalizes both sides before compare.
+  // MGR_LZ owner = 0x0000…(padded); send the leading-zero-stripped form → must still match.
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const unpadded = '0x' + '5'.repeat(60); // strips the 4 leading zeros of LZ_OWNER
+  const { status } = await callRoute(srv, 'POST', '/quote', { sender: unpadded, mgr: MGR_LZ, expiry: '1750000000' });
+  assert.equal(status, 200);
+});
+
+test('POST /claim-tx returns tx when mgr owned by sender', async () => {
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/claim-tx',
+    { sender: SENDER, note: '0xNOTE', mgr: MGR, oracle: '0xorc' });
+  assert.equal(status, 200);
+  assert.equal(j.tx, `CLAIM:${SENDER}:0xNOTE`);
+});
+
+test('POST /claim-tx 403 when mgr not owned by sender', async () => {
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/claim-tx',
+    { sender: OTHER, note: '0xNOTE', mgr: MGR, oracle: '0xorc' });
+  assert.equal(status, 403);
+  assert.equal(j.code, 'MGR_NOT_OWNED');
+});
+
+// --- monkey / edge cases (test.md) ---
+
+test('POST /quote 400 BAD_MGR rejects attacker-deployed look-alike type (wrong package)', async () => {
+  // Same module::struct, different package address — must NOT pass the exact type check.
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: SENDER, mgr: FOREIGN_MGR, expiry: '1750000000' });
+  assert.equal(status, 400);
+  assert.equal(j.code, 'BAD_MGR');
+});
+
+test('POST /quote 400 BAD_MGR when mgr object is deleted / non-existent', async () => {
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: SENDER, mgr: DELETED_MGR, expiry: '1750000000' });
+  assert.equal(status, 400);
+  assert.equal(j.code, 'BAD_MGR');
+});
+
+test('POST /quote 403 when manager has no owner field', async () => {
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: SENDER, mgr: NO_OWNER_MGR, expiry: '1750000000' });
+  assert.equal(status, 403);
+  assert.equal(j.code, 'MGR_NOT_OWNED');
+});
+
+test('POST /quote 400 BAD_PARAMS when sender is malformed', async () => {
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xZZZ', mgr: MGR, expiry: '1750000000' });
+  assert.equal(status, 400);
+  assert.equal(j.code, 'BAD_PARAMS');
 });
