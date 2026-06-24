@@ -124,6 +124,47 @@ regression; B-core already pixel-identical at `leftover=0`).
 - Live: re-run `/note-params?note=0x136990dd…` and `/quote` against testnet, confirm `leftover`
   ≈ 5.07 (note) and a sane positive preview.
 
+## Chart-internal display fixes (folded in — surfaced by the design review)
+
+Feeding a real `leftover` makes `baseline > 0`, which exposes display gaps in `PayoffChart.jsx`
+that B-core left. These are scoped IN because they are the same chart block and one (the baseline
+label) is a genuine data-integrity bug, not cosmetics:
+
+- **C1 (bug) — baseline Y-tick.** With `baseline > 0` the fill floor sits at `py(baseline)` but the
+  Y axis only labels `0` (`:99`) and `maxPayout` (`:100`). The reader sees the staircase float above
+  an unlabeled "0" with the floor (leftover, the holder's all-OTM reclaim) unannotated. Add a third
+  Y-tick at `py(baseline)` labelled `fmt(baseline)` **when `baseline > 0`** (skip when `0` →
+  no regression vs current 2-tick look). Also update the SVG `aria-label` (`:53`) to state the
+  non-zero floor.
+- **C2 — forward marker colour split** (`:84` line `--rust` vs `:86` label `--chart-fwd` gold).
+  Unify to gold (`--chart-fwd`) for line + label so the forward annotation reads as one element,
+  not "warning line + value label".
+- **C3 — settlement marker contrast** (`:91-94` all `--pearl` ≈ near-black, low contrast on the pale
+  nacre fill). Move to a distinct readable ink (reuse `--jade`, already the positive-PnL colour, or
+  a dedicated `--chart-settlement` token) so the post-expiry settlement point stays legible.
+- **C4 — preview overflow guard.** `.nl-preview` (App.css) has no `max-height`/scroll; a many-leg
+  chart can push Cancel/Confirm below the mobile fold. Add a `max-height` + `overflow:auto` guard
+  on small viewports.
+- **C5 — SVG max-width conflict.** Inline `maxWidth: full?480:420` (`:54`) vs Leaderboard.css
+  `.nl-detail svg { max-width:420px }` clips the right-edge tick/settlement marker at 480px.
+  Reconcile to a single source of truth.
+
+Tests: extend `payoff.test.js`/a `PayoffChart` smoke to assert the baseline tick renders iff
+`baseline>0` and the floor label equals `fmt(leftover)`. `vite build` green.
+
+## Deferred (separate follow-up tasks — tracked in progress.md)
+
+These came out of the same design review but are a larger scope and **not** folded in:
+
+- **Chart-as-centerpiece + de-AI pass**: break the 760px single column, 2-column chart + metric
+  rail (Max Payout / Band / Forward / Breakeven / PnL), nacre fill that actually shimmers,
+  staircase `stroke-dashoffset` entrance, desaturated-molten primary button (drop the pink candy
+  gradient + pink glow), WCAG floor (`--chart-tick`, `--pearl-dim`, `--ink-faint` to ≥4.5:1),
+  `✓`/`↗` glyphs → SVG. Own brainstorming → plan.
+- **MyNotes/Leaderboard UX batch**: Claim button → primary, expanded-row close affordance,
+  manager-id truncation (`slice(0,12)` shows all-zeros on padded ids → use last-8), leaderboard
+  loading skeleton, mint spinner. Low-risk batch.
+
 ## Out of scope (separate follow-up)
 
 `/quote` should on-chain verify `mgr` belongs to `sender` (codex security finding; currently only
