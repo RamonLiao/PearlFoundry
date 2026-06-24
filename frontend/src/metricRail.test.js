@@ -22,6 +22,9 @@ test('fmtExpiry handles SECONDS (10-digit) and millis, em-dash on bad input', ()
   assert.match(fmtExpiry(1750000000000), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/); // already ms
   assert.equal(fmtExpiry(null), '—');
   assert.equal(fmtExpiry('not-a-number'), '—');
+  // monkey: finite-but-out-of-Date-range must not throw RangeError, em-dash instead
+  assert.equal(fmtExpiry(1e20), '—');
+  assert.equal(fmtExpiry(-1e20), '—');
 });
 
 test('fmtPerStep shows +qty × legs', () => {

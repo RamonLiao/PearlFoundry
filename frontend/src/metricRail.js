@@ -43,8 +43,9 @@ export function fmtExpiry(expiry) {
   let ms = Number(expiry);
   if (!Number.isFinite(ms)) return EMDASH;
   if (ms < 1e12) ms *= 1000; // 10-digit seconds → millis
-  const iso = new Date(ms).toISOString();
-  return iso.slice(0, 16).replace('T', ' ');
+  const date = new Date(ms);
+  if (Number.isNaN(date.getTime())) return EMDASH; // out of Date range → don't let toISOString throw
+  return date.toISOString().slice(0, 16).replace('T', ' ');
 }
 
 // per-leg qty (base units) × legs → "+0.62 × 16"
