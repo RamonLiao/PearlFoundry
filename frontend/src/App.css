@@ -18,6 +18,7 @@
 .nl-masthead {
   display: flex; align-items: center; gap: 18px; flex-wrap: wrap; /* review I6: wrap on narrow */
   padding-bottom: 0; border: none; margin-bottom: 8px;
+  position: relative; z-index: 20; /* positioned + raised so the ConnectButton account dropdown (shadow-DOM, position:absolute) paints above later static .nl-section cards */
 }
 @keyframes nl-bob { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-12px) rotate(3deg); } }
 .nl-mast-logo {
