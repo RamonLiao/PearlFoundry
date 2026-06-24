@@ -29,11 +29,22 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
   const area = [...line, `${px(pMax).toFixed(1)},${py(0).toFixed(1)}`];
 
   const showDots = legs <= 24;
-  const fwdX = forward != null ? px(forward) : null;
+  // Markers can fall outside the band domain (e.g. forward below the accrual zone at mint).
+  // Clamp them to the plot edges so they never collide with the axis labels, and flag the
+  // off-scale direction so the staircase stays readable instead of squashed.
+  const clampX = (x) => Math.max(x0, Math.min(x1, x));
+  const fwdRaw = forward != null ? px(forward) : null;
+  const fwdX = fwdRaw != null ? clampX(fwdRaw) : null;
+  const fwdBelow = fwdRaw != null && fwdRaw < x0;
+  const fwdAbove = fwdRaw != null && fwdRaw > x1;
   const fwdRight = fwdX != null && fwdX > x0 + (x1 - x0) * 0.7; // flip label left when forward is far right
-  const setX = settlementPrice != null ? px(settlementPrice) : null;
+  const setRaw = settlementPrice != null ? px(settlementPrice) : null;
+  const setX = setRaw != null ? clampX(setRaw) : null;
   const setY = settlementPrice != null ? py(payoutAt(curve, settlementPrice)) : null;
   const setRight = setX != null && setX > x0 + (x1 - x0) * 0.7;
+  // Axis ticks: pick the fewest decimals that render the band edges distinctly (narrow BTC
+  // bands round to the same integer 'k' otherwise — e.g. 62.632k and 62.647k both → 63k).
+  const kd = kDecimals(lo, hi);
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
@@ -70,7 +81,7 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
       {fwdX != null && <>
         <line x1={fwdX} y1={y1} x2={fwdX} y2={y0} stroke="var(--rust)" strokeWidth="1.3" strokeDasharray="4 3" />
         <text x={fwdRight ? fwdX - 4 : fwdX + 4} y={y1 + 12} textAnchor={fwdRight ? 'end' : 'start'}
-          fill="var(--chart-fwd)" fontFamily="var(--font-mono)" fontSize="11">fwd {fmt(forward)}</text>
+          fill="var(--chart-fwd)" fontFamily="var(--font-mono)" fontSize="11">{fwdBelow ? '< ' : ''}fwd {fmt(forward)}{fwdAbove ? ' >' : ''}</text>
       </>}
 
       {/* settlement marker — structurally distinct (solid line + ringed dot + tag) */}
@@ -85,8 +96,8 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
       {full && <>
         <text x={x0 - 6} y={y0 + 3} textAnchor="end" fill="var(--chart-tick)" fontFamily="var(--font-mono)" fontSize="11">0</text>
         <text x={x0 - 6} y={y1 + 8} textAnchor="end" fill="var(--chart-tick)" fontFamily="var(--font-mono)" fontSize="11">{fmt(maxPayout)}</text>
-        <text x={px(lo)} y={y0 + 16} textAnchor="middle" fill="var(--chart-tick)" fontFamily="var(--font-mono)" fontSize="11">{fmtK(lo)}</text>
-        <text x={px(hi)} y={y0 + 16} textAnchor="middle" fill="var(--chart-tick)" fontFamily="var(--font-mono)" fontSize="11">{fmtK(hi)}</text>
+        <text x={px(lo)} y={y0 + 16} textAnchor="middle" fill="var(--chart-tick)" fontFamily="var(--font-mono)" fontSize="11">{fmtK(lo, kd)}</text>
+        <text x={px(hi)} y={y0 + 16} textAnchor="middle" fill="var(--chart-tick)" fontFamily="var(--font-mono)" fontSize="11">{fmtK(hi, kd)}</text>
       </>}
     </svg>
   );
@@ -97,6 +108,11 @@ function payoutAt(curve, price) {
   const below = curve.strikes.filter((s) => s < price).length;
   return (curve.maxPayout / curve.legs) * below;
 }
-// compact integer formatting for oracle ticks (e9) → human price, and base-unit payout → dUSDC.
-function fmtK(tick) { return `${Math.round(tick / 1e9 / 1000)}k`; }
+// compact formatting for oracle ticks (e9) → human price, and base-unit payout → dUSDC.
+function fmtK(tick, decimals = 0) { return `${(tick / 1e12).toFixed(decimals)}k`; }
+// fewest decimals (0–3) that render lo and hi as distinct 'k' labels.
+function kDecimals(lo, hi) {
+  for (let d = 0; d <= 3; d++) if ((lo / 1e12).toFixed(d) !== (hi / 1e12).toFixed(d)) return d;
+  return 3;
+}
 function fmt(v) { return v >= 1e9 ? `${(v / 1e9 / 1000).toFixed(1)}k` : `${(v / 1e6).toFixed(2)}`; }
