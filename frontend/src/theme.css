@@ -19,6 +19,7 @@
   --chart-grid: rgba(58, 51, 64, 0.05);
   --chart-tick: var(--ink-faint);   /* #9b8f99, WCAG-corrected */
   --chart-fwd: var(--gold-ink);     /* #9a6a1e, label text ≥4.5:1 */
+  --chart-settlement: #1f7a5e; /* jade-dark: legible on the pale nacre fill, distinct from gold forward */
   --pinkgold: linear-gradient(120deg, #f9d27c 0%, #f0b56a 45%, #ec8aa6 100%);
   --brass: #9c8045;
   --nacre-accent: #c9c1e8;

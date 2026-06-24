@@ -50,7 +50,7 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
-      aria-label={`Payoff: 0 below ${fmt(lo)}, rising in steps to ${fmt(maxPayout)} at ${fmt(hi)}.${forward != null ? ` Forward ${fmt(forward)}.` : ''}${settlementPrice != null ? ` Settled at ${fmt(settlementPrice)}.` : ''}`}
+      aria-label={`Payoff: floor ${fmt(baseline)} below ${fmt(lo)}, rising in steps to ${fmt(maxPayout)} at ${fmt(hi)}.${forward != null ? ` Forward ${fmt(forward)}.` : ''}${settlementPrice != null ? ` Settled at ${fmt(settlementPrice)}.` : ''}`}
       style={{ display: 'block', minWidth: 0, maxWidth: full ? 480 : 420 }}>
       <defs>
         {/* Real --nacre 4-stop iridescent sweep (theme.css), low opacity */}
@@ -81,22 +81,26 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
 
       {/* forward marker */}
       {fwdX != null && <>
-        <line x1={fwdX} y1={y1} x2={fwdX} y2={y0} stroke="var(--rust)" strokeWidth="1.3" strokeDasharray="4 3" />
+        <line x1={fwdX} y1={y1} x2={fwdX} y2={y0} stroke="var(--chart-fwd)" strokeWidth="1.3" strokeDasharray="4 3" />
         <text x={fwdRight ? fwdX - 4 : fwdX + 4} y={y1 + 12} textAnchor={fwdRight ? 'end' : 'start'}
           fill="var(--chart-fwd)" fontFamily="var(--font-mono)" fontSize="11">{fwdBelow ? '< ' : ''}fwd {fmt(forward)}{fwdAbove ? ' >' : ''}</text>
       </>}
 
       {/* settlement marker — structurally distinct (solid line + ringed dot + tag) */}
       {setX != null && <>
-        <line x1={setX} y1={y1} x2={setX} y2={y0} stroke="var(--pearl)" strokeWidth="1.3" />
-        <circle cx={setX} cy={setY} r={full ? 5 : 4} fill="none" stroke="var(--pearl)" strokeWidth="1.5" />
-        <circle cx={setX} cy={setY} r={full ? 2.5 : 2} fill="var(--pearl)" />
-        {full && <text x={setRight ? setX - 6 : setX + 6} y={setY - 6} textAnchor={setRight ? 'end' : 'start'} fill="var(--pearl)" fontFamily="var(--font-mono)" fontSize="11">settled {fmt(settlementPrice)}</text>}
+        <line x1={setX} y1={y1} x2={setX} y2={y0} stroke="var(--chart-settlement)" strokeWidth="1.3" />
+        <circle cx={setX} cy={setY} r={full ? 5 : 4} fill="none" stroke="var(--chart-settlement)" strokeWidth="1.5" />
+        <circle cx={setX} cy={setY} r={full ? 2.5 : 2} fill="var(--chart-settlement)" />
+        {full && <text x={setRight ? setX - 6 : setX + 6} y={setY - 6} textAnchor={setRight ? 'end' : 'start'} fill="var(--chart-settlement)" fontFamily="var(--font-mono)" fontSize="11">settled {fmt(settlementPrice)}</text>}
       </>}
 
       {/* axis ticks (full only) */}
       {full && <>
         <text x={x0 - 6} y={y0 + 3} textAnchor="end" fill="var(--chart-tick)" fontFamily="var(--font-mono)" fontSize="11">0</text>
+        {baseline > 0 && (
+          <text x={x0 - 6} y={py(baseline) + 3} textAnchor="end" fill="var(--chart-tick)"
+            fontFamily="var(--font-mono)" fontSize="11">{fmt(baseline)}</text>
+        )}
         <text x={x0 - 6} y={y1 + 8} textAnchor="end" fill="var(--chart-tick)" fontFamily="var(--font-mono)" fontSize="11">{fmt(maxPayout)}</text>
         <text x={px(lo)} y={y0 + 16} textAnchor="middle" fill="var(--chart-tick)" fontFamily="var(--font-mono)" fontSize="11">{fmtK(lo, kd)}</text>
         <text x={px(hi)} y={y0 + 16} textAnchor="middle" fill="var(--chart-tick)" fontFamily="var(--font-mono)" fontSize="11">{fmtK(hi, kd)}</text>
