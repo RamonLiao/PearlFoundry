@@ -191,3 +191,19 @@
 .nl-resume .nl-note { margin-top: 0; }
 .nl-note { font-size: 13px; color: var(--pearl-dim); margin-top: 12px; display: flex; gap: 10px; align-items: center; }
 .nl-note code { font-family: var(--font-mono); }
+
+/* ── Metric rail (live hero) — divided list, not boxed cards ───────────────── */
+.nl-rail { margin: 0; display: flex; flex-direction: column; }
+.nl-rail-row {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 0; border-top: 1px solid var(--hairline);
+}
+.nl-rail-row:first-child { border-top: none; }
+.nl-rail-row--floor { padding-left: 12px; border-left: 2px solid var(--jade); }
+.nl-rail-label {
+  font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--ink-faint);
+}
+.nl-rail-value--num { font-family: var(--font-display); font-size: 21px; color: var(--pearl); line-height: 1.1; }
+.nl-rail-value--mono { font-family: var(--font-mono); font-size: 14px; color: var(--pearl); }
+.nl-rail-row--floor .nl-rail-value--num { color: var(--jade); }
