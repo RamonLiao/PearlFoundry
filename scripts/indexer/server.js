@@ -1,9 +1,9 @@
 import http from 'node:http';
-import { leaderboard, listNotes, pendingSettle, feeStats } from './queries.js';
+import { leaderboard, listNotes, pendingSettle, feeStats, noteById } from './queries.js';
 import { hexToUtf8, hexToBase64 } from './decode.js';
 import { computeQtyPerLeg } from '../pricing/qty.js';
 import { CFG, PKG } from '../integration/config.js';
-import { deriveLeftover } from './leftover.js';
+import { deriveLeftover, deriveParamsFromEvents } from './leftover.js';
 
 // Local dev dApp is served cross-origin (vite :5173 → api :8787); allow CORS so the
 // browser can reach these routes. Permissive origin is fine for a local/testnet tool.
@@ -54,6 +54,17 @@ export function createServer(db, { client, txdeps } = {}) {
           const asset = url.searchParams.get('asset') ?? 'BTC';
           const expiry = url.searchParams.get('expiry');
           if (!note || !expiry) return json(res, 400, { error: 'note, expiry required', code: 'BAD_PARAMS' });
+          // Fetch mint tx events to derive immutable leftover and reconstruct params if df is gone.
+          const row = noteById(db, note);
+          if (!row?.tx_digest) return json(res, 404, { error: 'no mint tx for note', code: 'NO_MINT_TX' });
+          let leftover = null, eventParams = null;
+          try {
+            const txb = await client.getTransactionBlock({ digest: row.tx_digest, options: { showEvents: true } });
+            leftover = deriveLeftover(txb.events).leftover.toString();
+            eventParams = deriveParamsFromEvents(txb.events);
+          } catch (e) {
+            return json(res, 502, { error: `mint tx read failed: ${e.message}`, code: 'MINT_TX_READ_FAILED' });
+          }
           const { resolveOracle } = await import('../pricing/oracle.js');
           // RangeParams lives as a dynamic field under the note, keyed by note::ParamsKey.
           // Move gives empty structs a phantom `dummy_field: bool` — the JSON-RPC name value
@@ -66,15 +77,25 @@ export function createServer(db, { client, txdeps } = {}) {
           // df value object wraps the stored struct under `.value.fields` (JSON-RPC layout for
           // a struct-valued dynamic field). Fall back to flat fields if the layout differs.
           const rp = pf?.value?.fields ?? pf;
-          if (!rp || rp.lower == null) {
+          let params;
+          if (rp && rp.lower != null) {
+            params = {
+              version: Number(rp.version), lower: rp.lower, upper: rp.upper,
+              strike_step: rp.strike_step, qty_per_leg: rp.qty_per_leg,
+              legs_per_expiry: Number(rp.legs_per_expiry), expiry_count: Number(rp.expiry_count),
+              hurdle_bps: Number(rp.hurdle_bps),
+            };
+          } else if (eventParams) {
+            params = {
+              version: 1,
+              lower: eventParams.lower.toString(), upper: eventParams.upper.toString(),
+              strike_step: eventParams.strike_step.toString(), qty_per_leg: eventParams.qty_per_leg.toString(),
+              legs_per_expiry: eventParams.legs_per_expiry, expiry_count: eventParams.expiry_count,
+              hurdle_bps: 10000,
+            };
+          } else {
             return json(res, 404, { error: 'no params (note may be claimed/deleted)', code: 'NO_PARAMS' });
           }
-          const params = {
-            version: Number(rp.version), lower: rp.lower, upper: rp.upper,
-            strike_step: rp.strike_step, qty_per_leg: rp.qty_per_leg,
-            legs_per_expiry: Number(rp.legs_per_expiry), expiry_count: Number(rp.expiry_count),
-            hurdle_bps: Number(rp.hurdle_bps),
-          };
           // Oracle forward / settlement_price — read raw (NOT fetchOracle, which throws on settled).
           let forward = null, settlementPrice = null;
           try {
@@ -84,7 +105,7 @@ export function createServer(db, { client, txdeps } = {}) {
             settlementPrice = f?.settlement_price ?? null;
             forward = f?.prices?.fields?.forward ?? null;
           } catch (e) { console.error('[note-params] oracle read failed (forward optional):', e.message); }
-          return json(res, 200, { params, forward, settlementPrice });
+          return json(res, 200, { params, forward, settlementPrice, leftover });
         }
       }
       if (req.method === 'POST') {

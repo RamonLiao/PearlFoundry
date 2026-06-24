@@ -46,7 +46,11 @@ function callRoute(server, method, path, body) {
   });
 }
 
-const fakeDb = { prepare: () => ({ all: () => [], get: () => ({}) }) };
+const noteRow = { note_id: '0xNOTE', tx_digest: '0xDIG', notional: '10000000', expiry_ts_ms: '1782266400000' };
+const fakeDb = { prepare: (sql) => ({
+  all: () => [],
+  get: () => (sql.includes('WHERE note_id') ? noteRow : {}),
+}) };
 
 // CFG constant from config.js
 const CFG_ID = '0xc8516309c6c65dd71a910a966abb8e74284ecb49eaaae1607acbf7440f249351';
@@ -82,6 +86,13 @@ const fakeClient = {
       { type: 'p::predict::PositionMinted', parsedJson: { cost: '300000', quantity: '5', strike: '1' } },
       { type: 'p::predict::PositionMinted', parsedJson: { cost: '300000', quantity: '5', strike: '2' } },
     ],
+  }),
+  getTransactionBlock: async ({ digest }) => ({
+    events: digest === '0xDIG' ? [
+      { type: 'p::events::BalanceEvent', parsedJson: { amount: '9970000', deposit: true } },
+      { type: 'p::predict::PositionMinted', parsedJson: { cost: '300000', quantity: '623125', strike: '62812000000000' } },
+      { type: 'p::predict::PositionMinted', parsedJson: { cost: '300000', quantity: '623125', strike: '63812000000000' } },
+    ] : [],
   }),
   queryEvents: async () => ({
     data: [{
@@ -167,4 +178,29 @@ test('GET /note-params returns range params + oracle forward', async () => {
   assert.ok(j.params.strike_step, 'strike_step present');
   assert.equal(j.forward, '95000');
   assert.equal(j.settlementPrice, null);
+});
+
+test('GET /note-params returns leftover from mint tx', async () => {
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'GET', '/note-params?note=0xNOTE&asset=BTC&expiry=1750000000', null);
+  assert.equal(status, 200);
+  assert.equal(j.leftover, '9370000'); // 9970000 − 600000
+});
+
+test('GET /note-params reconstructs params from events when df gone (settled)', async () => {
+  const dfGone = { ...fakeClient, getDynamicFieldObject: async () => ({ data: null }) };
+  const srv = createServer(fakeDb, { client: dfGone, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'GET', '/note-params?note=0xNOTE&asset=BTC&expiry=1750000000', null);
+  assert.equal(status, 200);
+  assert.equal(j.params.lower, '62812000000000');
+  assert.equal(j.params.strike_step, '1000000000000');
+  assert.equal(j.leftover, '9370000');
+});
+
+test('GET /note-params 404 when note row has no tx_digest', async () => {
+  const dbNoTx = { prepare: () => ({ all: () => [], get: () => undefined }) };
+  const srv = createServer(dbNoTx, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'GET', '/note-params?note=0xX&asset=BTC&expiry=1750000000', null);
+  assert.equal(status, 404);
+  assert.equal(j.code, 'NO_MINT_TX');
 });
