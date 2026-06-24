@@ -1,7 +1,7 @@
 .nl-app {
-  max-width: 760px;
+  max-width: 1040px;
   margin: 40px auto 64px;
-  padding: 0 16px;
+  padding: 0 clamp(16px, 5vw, 40px);
   position: relative;
   z-index: 1;
 }
@@ -86,14 +86,15 @@
 .nl-btn:disabled { opacity: 0.5; cursor: default; }
 
 .nl-btn--primary {
-  color: #3d1a28; background: var(--pinkgold); border: none; border-radius: 999px; /* review C1: darker text for WCAG on pink gradient end */
+  color: #3d1a28; background: var(--molten-end); border: none; border-radius: 999px;
   font-weight: 700; text-transform: none; letter-spacing: 0; font-size: 13px;
-  padding: 14px 27px; box-shadow: 0 15px 28px -10px rgba(236,138,166,.7);
+  padding: 14px 27px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 14px 26px -12px rgba(224,160,60,.7);
   display: inline-flex; align-items: center;
   transition: transform .15s ease, box-shadow .15s ease;
 }
-.nl-btn--primary:hover:not(:disabled) { transform: translateY(-3px) scale(1.03); box-shadow: 0 24px 40px -12px rgba(236,138,166,.9); } /* review N11: 1.03 not 1.05 */
-.nl-btn--primary:active:not(:disabled) { transform: translateY(-1px) scale(1.02); } /* review N12: tactile press */
+.nl-btn--primary:hover:not(:disabled) { transform: translateY(-3px) scale(1.03); box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 22px 38px -14px rgba(224,160,60,.85); }
+.nl-btn--primary:active:not(:disabled) { transform: translateY(-1px) scale(1.02); }
 .nl-btn--primary:disabled { opacity: 0.55; }
 
 /* connected-address pill (light) */
@@ -208,6 +209,33 @@
 .nl-resume .nl-note { margin-top: 0; }
 .nl-note { font-size: 13px; color: var(--pearl-dim); margin-top: 12px; display: flex; gap: 10px; align-items: center; }
 .nl-note code { font-family: var(--font-mono); }
+
+/* ── Hero (chart-as-centerpiece) ──────────────────────────────────────────── */
+.nl-hero {
+  background: var(--obsidian-raised); border: 1px solid var(--hairline);
+  border-radius: 28px; padding: clamp(24px, 4vw, 38px); margin-top: 24px;
+  box-shadow: var(--shadow); position: relative; overflow: hidden;
+}
+.nl-hero::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--nacre); opacity: .6; }
+.nl-hero-grid {
+  display: grid; grid-template-columns: 1.6fr 1fr; gap: clamp(32px, 4vw, 56px);
+  align-items: start; /* rail/copy top-align to the chart's plot area */
+}
+.nl-hero-chart { min-width: 0; }
+.nl-hero-side { display: flex; flex-direction: column; gap: 18px; }
+.nl-hero-explain { font-size: 14px; line-height: 1.5; color: var(--pearl-dim); margin: 0; }
+.nl-hero-explain b { color: var(--pearl); }
+/* idle concept rows — inline definition rows, NOT boxed cards (one card pattern max per viewport) */
+.nl-concepts { display: flex; flex-direction: column; }
+.nl-concept { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--hairline); }
+.nl-concept:first-child { border-top: none; }
+.nl-concept .nl-li { width: 16px; height: 16px; color: var(--gold-ink); flex: none; }
+.nl-concept-term { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); }
+.nl-concept-val { font-size: 13px; color: var(--pearl); margin-left: auto; }
+.nl-hero-cap { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 10px; }
+@media (max-width: 720px) {
+  .nl-hero-grid { grid-template-columns: 1fr; } /* fold: chart on top, side below */
+}
 
 /* ── Metric rail (live hero) — divided list, not boxed cards ───────────────── */
 .nl-rail { margin: 0; display: flex; flex-direction: column; }
