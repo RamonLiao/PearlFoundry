@@ -10,8 +10,9 @@
 - [ ] （候選）sponsored-tx gas station / 其他 strategy / empty+loading 狀態
 
 ## Blockers
-- （無）。payoff diagram 已 merge local `main`（tip `706b76f`），**未 push**（等使用者）。前一 push 點 `origin/main` = `15baf13`。
-- **🔴 兩個 human-deferred 待驗（payoff，非 blocker 但 merge 前未跑）**：(1) **live wallet round-trip**（PTB1→preview→Confirm→PTB2，真錢包瀏覽器）；(2) **`/note-params` dynamic-field 校準**：server `rp = pf?.value?.fields ?? pf` nesting 從未對 live note 驗過（當時 testnet 無 alive note）。MyNotes 展開若顯示 error/garbled → 翻 server-side 那一行 extraction。**fail-loud**（錯→NO_PARAMS，不會給壞資料）。
+- （無）。payoff diagram + 2 個 live-run fix 已在 local `main`（tip `dd9f719`），**未 push**（等使用者）。前一 push 點 `origin/main` = `15baf13`。
+- **live-run（2026-06-24）抓到並修掉 2 個真 bug**：(1) **`/note-params` ParamsKey 編碼**：Move 空 struct 有 phantom `dummy_field: bool`，`value: {}` 被 RPC 拒(-32602)→ 改 `value: { dummy_field: false }`（commit `4150448`，live 確認 deleted note 現回乾淨 NO_PARAMS 404）。(2) **CORS**：server 從未送 `Access-Control-Allow-Origin`→ 瀏覽器擋掉所有 :8787 fetch（leaderboard/quote/note-params 全死）→ 加 CORS header + OPTIONS preflight（commit `dd9f719`，live 確認 leaderboard 載入）。
+- **仍 human-deferred（需真錢包 + alive note）**：(1) mint 卡 **live round-trip**（PTB1→payoff preview→Confirm→PTB2）；(2) MyNotes 展開 **success 路徑**（compact 圖 + claimable 結算落點）——目前 testnet 唯一 note 已 claim/刪，無 alive note 可驗 success；`/note-params` 的 dynamic-field nesting（`rp=pf.value.fields ?? pf`）success 路徑仍只靠 Sui Field 慣例，未對 live alive note 驗過。**前端 + 後端 routes 已 live 確認可達（CORS 通、leaderboard 載入）**。
 
 ## Recently Completed
 - **2026-06-23 — Nacre Light UI 重設計 ✅ 完成、merge local `main`（merge `fcafb1f` --no-ff，build green，feature branch 已刪，未 push）**：dark→light 水底珍珠風。
