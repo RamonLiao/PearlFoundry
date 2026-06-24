@@ -1,5 +1,11 @@
 # Lessons
 
+## 2026-06-24 — 前端傳給 oracle 的「asset」要是 underlying（BTC）不是產品類型；硬寫 gasBudget 會「預留」SUI 害低餘額錢包 InsufficientGas；改 SQL schema 後 server 不重啟不生效
+- **Bug 1（claim 全壞）**：MyNotes 用 `n.strategy || 'BTC'` 當 oracle lookup 的 asset，但 `n.strategy` 解碼是**產品類型 `range_accrual`**，而 `resolveOracle` 比對的是 `registry::OracleCreated.underlying_asset`(="BTC")→ claim 噴 `no oracle for asset=range_accrual`。同 bug 也讓 `/note-params` 的 forward 讀靜默失敗（被 try/catch 吞，圖少紅虛線）。**教訓**：oracle 是用「定價標的」keying，不是用 note 的 strategy 欄。notes table 沒存 underlying（hackathon 全 BTC）→ 用常數 `UNDERLYING='BTC'`，別把 strategy 名拿去當 asset。
+- **Bug 2（mint 第二簽 InsufficientGas）**：`buildMintTx` 寫死 `setGasBudget(2 SUI)`。dapp-kit 簽署時 budget = 需要錢包持有 ≥ budget 的 gas coin **預留**，所以 free SUI <2 即 `InsufficientGas`，即使實際 16-leg mint 只花 ~0.5 SUI、錢包「看起來還有錢」。**教訓**：前端 PTB 別硬寫過大 gasBudget——交給 dapp-kit dry-run 估算（leave unset，跟同檔 `buildCreateManagerTx` 一致）。硬寫的高 budget 是「預留下限」不是「上限花費」，會誤殺低餘額錢包。CLI 腳本要自己 setGasBudget（不靠 wallet 估算）則另設。
+- **Bug 3 連帶（為何 PnL 看不到）**：改了 `queries.js listNotes` 多 SELECT 兩欄，但 **`server.js` 啟動時就 import 了 queries.js**——舊 server process 還在跑舊 SQL，`/notes` 不回新欄位。`lsof -ti :8787` 發現舊 process 還佔 port（我的 `ps | grep` pattern 沒抓到）。**教訓**：改任何 server 啟動時 import 的模組（query/schema/route），**必須 kill 舊 process 重啟**才生效；驗證「沒在跑」用 `lsof -ti :<port>` 比 `ps|grep` 可靠。
+- **驗 data-path 用 DB 直查**：PnL「沒顯示」先別怪前端——`node -e "require('better-sqlite3')..."` 直查 settlements 確認 `payout` 真的在（10997587），把「資料缺」vs「顯示 bug」vs「server 沒重啟」三者分離。better-sqlite3 在 `scripts/indexer/node_modules`，要 `cd scripts/indexer` 跑。
+
 ## 2026-06-23 — brainstorming visual companion 給 full-doc demo 要 base64 內嵌資產；redesign 的 design review 在 plan 階段抓 a11y 比實作後抓便宜
 - **背景**：Nacre Light 重設計用 brainstorming 的 visual companion 秀真實 demo（full HTML，非 fragment）。第一版 logo 用相對路徑 `<img src="logo.png">` → companion server 只 serve 最新 HTML，相對資產 404 破圖（masthead 顯示 alt「PearlFo」）。改成 base64 data-URI 內嵌（173KB）才穩。**教訓**：companion 的 full-document demo，所有圖片資產一律 base64 內嵌，別賭相對路徑能被 serve。
 - **背景2**：動畫/動態效果（氣泡、caustic、bob）在「截圖」裡本來就看不到 → 使用者回報「你講的全都沒有」。要嘛強度做到靜態也看得出立體（氣泡加白高光點+藍邊+陰影），要嘛明講「這是動態、請看 live」。**別用單張截圖判動畫。**

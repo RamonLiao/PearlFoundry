@@ -20,7 +20,7 @@ export function listNotes(db, { issuer, isPublic } = {}) {
   if (isPublic != null) { where.push('n.is_public = @isPublic'); params.isPublic = isPublic ? 1 : 0; }
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
   return db.prepare(`
-    SELECT n.*, (s.note_id IS NOT NULL) AS settled
+    SELECT n.*, (s.note_id IS NOT NULL) AS settled, s.payout AS payout, s.perf_fee AS perf_fee
     FROM notes n LEFT JOIN settlements s USING(note_id) ${clause}`).all(params);
 }
 

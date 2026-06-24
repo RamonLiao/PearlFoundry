@@ -43,7 +43,7 @@
      logo drop-shadow + card top-bar. */
   font-style: italic; color: var(--gold-ink);
 }
-.nl-connect { margin-left: auto; align-self: flex-start; }
+.nl-connect { margin-left: auto; align-self: center; }
 .nl-mascot {
   color: var(--ink-faint); font-size: 12px; margin: 0 0 32px; /* review I5: 8px-scale rhythm */
   display: flex; align-items: center; gap: 8px;
@@ -103,6 +103,16 @@
   border: 1px solid var(--hairline); border-radius: 999px; padding: 5px 12px; margin-bottom: 16px;
 }
 .nl-pill__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--molten); flex: none; }
+
+/* issuer address pill + mint CTA share one row (the issuer is always the connected wallet) */
+.nl-issue-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.nl-issue-row .nl-pill { margin-bottom: 0; }
+
+/* clickable explorer links (mint-tx status + note-object hash) */
+.nl-txlink { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.nl-txlink:hover { opacity: 0.8; }
+.nl-hashlink { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--hairline); }
+.nl-hashlink:hover { color: var(--gold-ink); border-bottom-color: var(--gold-ink); }
 
 /* status feedback (unchanged colors; keep) */
 .nl-status { font-family: var(--font-mono); font-size: 12px; white-space: pre-wrap; margin: 14px 0 0; opacity: 0; transform: translateY(4px); animation: nl-reveal 240ms ease forwards; }

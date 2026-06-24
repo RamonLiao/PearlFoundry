@@ -31,7 +31,7 @@
 .nl-row:hover { background-color: rgba(58, 51, 64, 0.03); }
 @keyframes nl-reveal { to { opacity: 1; transform: none; } }
 
-.nl-td { padding: 13px 10px; font-size: 13px; color: var(--pearl); height: 52px; box-sizing: border-box; }
+.nl-td { padding: 13px 10px; font-size: 13px; color: var(--pearl); height: 52px; box-sizing: border-box; vertical-align: middle; }
 .nl-td--num { text-align: right; }
 .nl-td--rank { position: relative; padding-left: 20px; } /* review #10 */
 
@@ -49,8 +49,10 @@
 .nl-pnl.is-pos { color: var(--jade); }
 .nl-pnl.is-neg { color: var(--rust); }
 
-.nl-win { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.nl-meter { width: 64px; height: 3px; background: rgba(58,51,64,.14); overflow: hidden; border-radius: 3px; } /* review M8: thicker+wider+more opaque track so fill ratio is perceptible */
+/* number sits on the row's centre line (td vertical-align:middle); the highlight meter is
+   absolutely positioned just below so it no longer vertically offsets the number vs siblings. */
+.nl-win { position: relative; display: inline-block; }
+.nl-meter { position: absolute; top: calc(100% + 3px); right: 0; width: 64px; height: 3px; background: rgba(58,51,64,.14); overflow: hidden; border-radius: 3px; } /* review M8: thicker+wider+more opaque track so fill ratio is perceptible */
 .nl-meter__fill { display: block; height: 100%; background: var(--nacre); }
 
 @media (prefers-reduced-motion: reduce) {

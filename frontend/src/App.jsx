@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
-import { useCurrentAccount, useDAppKit } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useDAppKit, useCurrentClient } from '@mysten/dapp-kit-react';
 import { prepareMint, finalizeMint } from './mint.js';
 import { computePayoffCurve } from './payoff.js';
 import PayoffChart from './PayoffChart.jsx';
@@ -13,6 +13,7 @@ import './App.css';
 export default function App() {
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
+  const client = useCurrentClient();
   const [status, setStatus] = useState('');
   const [statusKind, setStatusKind] = useState(/** @type {''|'ok'|'err'} */ (''));
   const [busy, setBusy] = useState(false);
@@ -20,15 +21,16 @@ export default function App() {
   const [mintPhase, setMintPhase] = useState('idle'); // idle|preparing|confirm|minting|done|cancelled|error
   const [preview, setPreview] = useState(null);       // { mgr, tx, ladder, forward, qtyPerLeg, expiry }
   const [mintErr, setMintErr] = useState(null);
+  const [txUrl, setTxUrl] = useState('');
 
   // Shared signExec: wraps dAppKit.signAndExecuteTransaction; accepts a Transaction object.
   const signExec = (tx) => dAppKit.signAndExecuteTransaction({ transaction: tx });
 
   async function onIssue() {
     setMintErr(null); setMintPhase('preparing');
-    setStatus(''); setStatusKind('');
+    setStatus(''); setStatusKind(''); setTxUrl('');
     try {
-      const p = await prepareMint({ signExec, sender: account.address });
+      const p = await prepareMint({ signExec, sender: account.address, client });
       setPreview(p); setMintPhase('confirm');
     } catch (e) { setMintErr(e.message); setMintPhase('error'); }
   }
@@ -37,7 +39,8 @@ export default function App() {
     setMintPhase('minting');
     try {
       const out = await finalizeMint({ signExec, tx: preview.tx, mgr: preview.mgr });
-      setStatus(`Minted OK — ${EXPLORER}${out.mintDigest}`);
+      setStatus('Minted OK');
+      setTxUrl(`${EXPLORER}${out.mintDigest}`);
       setStatusKind('ok');
       setMintPhase('done');
     } catch (e) { setMintErr(e.message); setMintPhase('error'); }
@@ -87,11 +90,11 @@ export default function App() {
                 Issue a Note
               </h2>
             </div>
-            <div className="nl-pill">
-              <span className="nl-pill__dot" />
-              {account.address.slice(0, 10)}…{account.address.slice(-6)}
-            </div>
-            <div>
+            <div className="nl-issue-row">
+              <div className="nl-pill">
+                <span className="nl-pill__dot" />
+                {account.address.slice(0, 10)}…{account.address.slice(-6)}
+              </div>
               <button
                 className="nl-btn nl-btn--primary"
                 disabled={busy || mintPhase === 'preparing' || mintPhase === 'minting' || mintPhase === 'confirm'}
@@ -133,6 +136,7 @@ export default function App() {
             {status && (
               <pre className={`nl-status ${statusKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>
                 {statusKind === 'ok' ? '✓ ' : ''}{status}
+                {txUrl && <>{'\n'}<a className="nl-txlink" href={txUrl} target="_blank" rel="noreferrer">{txUrl} ↗</a></>}
               </pre>
             )}
           </section>

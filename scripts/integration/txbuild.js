@@ -37,7 +37,9 @@ export function buildMintTx({ sender, mgr, oracle, dusdcCoin, notional, lower, u
     arguments: [ticket, tx.object(PREDICT), tx.object(mgr), tx.object(oracle), tx.object(CLOCK)],
   });
   tx.moveCall({ target: `${PKG}::note_factory::mint_finalize`, arguments: [ticket, tx.object(CLOCK)] });
-  tx.setGasBudget(2_000_000_000);
+  // Gas LEFT UNSET (matches buildCreateManagerTx + this file's contract): dapp-kit dry-run-estimates
+  // the budget at sign time. A hardcoded 2-SUI budget *reserves* 2 SUI of gas coins, so a wallet
+  // with <2 SUI free hit InsufficientGas even though the real 16-leg mint costs ~0.5 SUI.
   return tx;
 }
 
