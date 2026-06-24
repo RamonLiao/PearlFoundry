@@ -7,8 +7,9 @@ import { API } from './config.js';
 
 const tag = (e, phase, extra = {}) => Object.assign(e, { phase, ...extra });
 
-export async function sponsoredClaim({ dAppKit, client, sender, note, mgr, oracle, fetchImpl = fetch }) {
+export async function sponsoredClaim({ dAppKit, client, sender, note, mgr, oracle, fetchImpl = fetch, onPhase }) {
   // --- phase 'request' (pre-popup): a failure here is safe to silently fall back to self-pay ---
+  onPhase?.('sponsoring');
   let resp;
   {
     let r;
@@ -25,6 +26,7 @@ export async function sponsoredClaim({ dAppKit, client, sender, note, mgr, oracl
 
   // --- phase 'sign': wallet popup. The holder signs the SAME bytes verbatim ---
   let signed;
+  onPhase?.('awaiting-sign');
   try { signed = await dAppKit.signTransaction({ transaction: txBytes }); }
   catch (e) { throw tag(e, 'sign'); }
 
@@ -33,6 +35,7 @@ export async function sponsoredClaim({ dAppKit, client, sender, note, mgr, oracl
     throw tag(new Error('wallet altered the transaction bytes'), 'verify', { code: 'BYTE_MISMATCH' });
 
   // --- phase 'execute': dual-sig submit via gRPC (NOT JSON-RPC) ---
+  onPhase?.('submitting');
   let res;
   try {
     res = await client.core.executeTransaction({

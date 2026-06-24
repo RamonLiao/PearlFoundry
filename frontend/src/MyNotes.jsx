@@ -7,6 +7,8 @@ import PayoffChart from './PayoffChart.jsx';
 import { EXPLORER, EXPLORER_OBJ } from './config.js';
 import { shortId } from './format.js';
 import { sponsoredClaim } from './claimSponsored.js';
+import './Leaderboard.css';
+import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNotes styling resolves even if rendered standalone
 
 const DUSDC = 1_000_000; // 6 decimals
 // Oracle is keyed by the UNDERLYING price asset (registry::OracleCreated.underlying_asset),
@@ -27,8 +29,6 @@ function claimErrorCopy(e) {
     default: return e.message;
   }
 }
-import './Leaderboard.css';
-import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNotes styling resolves even if rendered standalone
 
 /**
  * MyNotes — lists the connected address's notes and allows claiming expired ones.
@@ -39,7 +39,7 @@ import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNo
  * oracle_id is NOT stored in the notes table. It is resolved at claim time via
  * GET /oracle?asset=<strategy>&expiry=<expiry_ts_ms> (added to server.js).
  *
- * @param {{ account: { address: string }, signExec: (tx: Transaction) => Promise<any> }} props
+ * @param {{ account: { address: string }, signExec: (tx: Transaction) => Promise<any>, dAppKit: object, client: object, sponsorAvailable: boolean }} props
  */
 export default function MyNotes({ account, signExec, dAppKit, client, sponsorAvailable }) {
   const [notes, setNotes] = useState([]);
@@ -112,11 +112,9 @@ export default function MyNotes({ account, signExec, dAppKit, client, sponsorAva
       if (trySponsor) {
         try {
           const oracle = await getOracle(UNDERLYING, n.expiry_ts_ms);
-          setClaimPhase('sponsoring');
-          // sponsoredClaim drives request→sign→execute; we flip to awaiting-sign just before the popup.
-          setClaimPhase('awaiting-sign');
           ({ digest } = await sponsoredClaim({
             dAppKit, client, sender: account.address, note: n.note_id, mgr: n.manager_id, oracle,
+            onPhase: setClaimPhase,
           }));
           usedSponsor = true;
         } catch (e) {

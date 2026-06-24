@@ -46,3 +46,13 @@ test('execute returns FailedTransaction → phase execute', async () => {
     () => sponsoredClaim({ ...baseArgs, dAppKit: honestKit, client: failClient, fetchImpl: okFetch({ tx: 'AQID', sponsorSig: 'S' }) }),
     (e) => e.phase === 'execute');
 });
+
+test('onPhase callback fires in order: sponsoring → awaiting-sign → submitting', async () => {
+  const phases = [];
+  await sponsoredClaim({
+    ...baseArgs, dAppKit: honestKit, client: okClient,
+    fetchImpl: okFetch({ tx: 'AQID', sponsorSig: 'SPONSORSIG' }),
+    onPhase: (p) => phases.push(p),
+  });
+  assert.deepEqual(phases, ['sponsoring', 'awaiting-sign', 'submitting']);
+});
