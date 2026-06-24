@@ -264,7 +264,6 @@ In `scripts/indexer/server.js`, add the import near the top (after the existing 
 
 ```js
 import { pickGasCoins, signSponsored, SPONSOR_GAS_CAP } from '../integration/sponsor.js';
-import { toBase64 } from '@mysten/sui/utils';
 ```
 
 Add `assertClaimable` next to `assertManagerOwner` (after line 51):
@@ -310,13 +309,14 @@ Add `POST /sponsor-claim` in the POST block (after `/claim-tx`):
           tx.setGasOwner(sponsor.address);
           tx.setGasPayment(await pickGasCoins(client, sponsor.address, SPONSOR_GAS_CAP));
           tx.setGasBudget(SPONSOR_GAS_CAP);
-          // Dry-run the EXACT bytes we'll sponsor-sign: authoritative settled-ness gate + staleness guard.
-          const txBytes = await tx.build({ client });
-          const dr = await client.dryRunTransactionBlock({ transactionBlock: toBase64(txBytes) });
+          // signSponsored builds once + sponsor-signs (signing is local/free). Dry-run the SAME bytes
+          // before returning: authoritative settled-ness gate + staleness guard. On failure we simply
+          // don't hand back the sig.
+          const { txBytes, sponsorSig } = await signSponsored({ tx, client, keypair: sponsor.keypair });
+          const dr = await client.dryRunTransactionBlock({ transactionBlock: txBytes });
           if (dr.effects.status.status !== 'success')
             return json(res, 502, { error: `claim dry-run failed: ${dr.effects.status.error}`, code: 'CLAIM_DRYRUN_FAILED' });
-          const { signature } = await sponsor.keypair.signTransaction(txBytes);
-          return json(res, 200, { tx: toBase64(txBytes), sponsorSig: signature });
+          return json(res, 200, { tx: txBytes, sponsorSig });
         }
 ```
 
