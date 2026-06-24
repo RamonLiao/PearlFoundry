@@ -178,7 +178,9 @@ export default function App() {
                     <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 3.5c.4 3.8 1.7 5.1 5.5 5.5-3.8.4-5.1 1.7-5.5 5.5-.4-3.8-1.7-5.1-5.5-5.5 3.8-.4 5.1-1.7 5.5-5.5Z" />
                     </svg>
-                    {mintPhase === 'preparing' ? 'Preparing…' : 'Mint Range Note'}
+                    {mintPhase === 'preparing'
+                      ? (<><span className="nl-spinner" aria-hidden="true"><i /><i /><i /></span>Preparing…</>)
+                      : 'Mint Range Note'}
                   </button>
                 </div>
               ) : (
@@ -203,7 +205,9 @@ export default function App() {
             <button className="nl-btn" disabled={mintPhase === 'minting'} onClick={onConfirmMint}>Confirm Mint</button></p>
         )}
         {mintPhase === 'error' && <p className="nl-error">{mintErr}</p>}
-        {mintPhase === 'minting' && <p className="nl-note">Minting…</p>}
+        {mintPhase === 'minting' && (
+          <p className="nl-note"><span className="nl-spinner" aria-hidden="true"><i /><i /><i /></span>Minting…</p>
+        )}
         {status && (
           <pre className={`nl-status ${statusKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>
             {statusKind === 'ok' && (

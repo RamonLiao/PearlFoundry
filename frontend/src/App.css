@@ -218,6 +218,7 @@
   .nl-bubble { opacity: 0; }
   .nl-draw, .nl-fillgate, .nl-dotgate { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
   .nl-detail-close { transition: none; }
+  .nl-spinner i { animation: none; opacity: .6; }
 }
 
 /* ── Payoff preview panel ─────────────────────────────────────────────────── */
@@ -279,3 +280,18 @@
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
 }
+
+/* mint progress: 3 rising-pearl dots (NOT a rotating ring — review C1) */
+.nl-spinner { display: inline-flex; gap: 3px; align-items: center; margin-right: 7px; }
+.nl-spinner i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #fff 0%, rgba(255,255,255,.6) 22%, rgba(150,205,225,.28) 60%, rgba(120,180,215,.10) 82%);
+  animation: nl-pearl 1.2s ease-in-out infinite;
+}
+.nl-spinner i:nth-child(2) { animation-delay: .15s; }
+.nl-spinner i:nth-child(3) { animation-delay: .30s; }
+@keyframes nl-pearl { 0%, 100% { transform: translateY(0); opacity: .45; } 50% { transform: translateY(-4px); opacity: 1; } }
+/* on the molten button the pearl gradient is invisible on gold — use the button's text color */
+.nl-btn--primary .nl-spinner i { background: #3d1a28; }
+/* pin width so swapping "Mint Range Note"→"Preparing…" + dots doesn't reflow .nl-issue-row */
+.nl-issue-row .nl-btn--primary { min-width: 196px; justify-content: center; }
