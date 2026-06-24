@@ -161,6 +161,12 @@ test('POST /quote returns leftover from mint dry-run', async () => {
   assert.equal(j.leftover, '9370000'); // 9970000 − (300000+300000)
 });
 
+test('POST /quote echoes notional so the metric rail can show it', async () => {
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM' });
+  assert.equal(j.notional, '10000000'); // default notional, base units (10 dUSDC)
+});
+
 test('POST /quote 502 when mint dry-run fails', async () => {
   const bad = { ...fakeClient, dryRunTransactionBlock: async () => ({ effects: { status: { status: 'failure', error: 'MoveAbort … 7' } }, events: [] }) };
   const srv = createServer(fakeDb, { client: bad, txdeps: fakeTxdeps });

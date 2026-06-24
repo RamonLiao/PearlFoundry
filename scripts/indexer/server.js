@@ -158,6 +158,7 @@ async function quote(client, txdeps, { sender, mgr, asset = 'BTC', expiry: bodyE
     qtyPerLeg: qtyPerLeg.toString(),
     oracleId: lad.oracleId, expiry, tx: tx.serialize(),
     leftover: leftover.toString(),
+    notional, // echo the principal so the metric rail can display it
   };
 }
 
