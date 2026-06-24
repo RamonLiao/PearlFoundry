@@ -29,6 +29,7 @@ import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNo
  */
 export default function MyNotes({ account, signExec }) {
   const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [msgKind, setMsgKind] = useState(/** @type {''|'ok'|'err'} */ (''));
   const [claimUrl, setClaimUrl] = useState('');
@@ -57,12 +58,15 @@ export default function MyNotes({ account, signExec }) {
   async function load() {
     setMsg('');
     setMsgKind('');
+    setLoading(true);
     try {
       // Normalize: indexer stores the full padded on-chain address; wallet form may be unpadded.
       setNotes(await getNotes(normalizeSuiAddress(account.address)));
     } catch (e) {
       setMsg(`Failed to load notes: ${e.message}`);
       setMsgKind('err');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -128,7 +132,30 @@ export default function MyNotes({ account, signExec }) {
         <button className="nl-refresh" onClick={load} disabled={!!claiming}>Refresh</button>
       </header>
 
-      {notes.length === 0 && <p className="nl-empty">No notes found.</p>}
+      {loading && notes.length === 0 && !msg && (
+        <table className="nl-table" aria-hidden="true">
+          <thead>
+            <tr>
+              <th className="nl-th">Note</th>
+              <th className="nl-th">Expiry</th>
+              <th className="nl-th">Status</th>
+              <th className="nl-th nl-th--num">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[0, 1, 2].map((i) => (
+              <tr className="nl-row" key={i} style={{ animation: 'none', opacity: 1 }}>
+                <td className="nl-td"><span className="nl-skel" style={{ width: '60%' }} /></td>
+                <td className="nl-td"><span className="nl-skel" style={{ width: '40%' }} /></td>
+                <td className="nl-td"><span className="nl-skel" style={{ width: '30%' }} /></td>
+                <td className="nl-td nl-td--num"><span className="nl-skel" style={{ width: '50%', marginLeft: 'auto' }} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {loading && <span className="sr-only" role="status">Loading notes…</span>}
+      {!loading && !msg && notes.length === 0 && <p className="nl-empty">No notes found.</p>}
 
       {notes.length > 0 && (
         <table className="nl-table">

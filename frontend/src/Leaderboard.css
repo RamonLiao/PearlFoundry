@@ -58,6 +58,7 @@
 @media (prefers-reduced-motion: reduce) {
   .nl-row { opacity: 1; transform: none; animation: none; }
   .nl-row, .nl-refresh { transition: none; }
+  .nl-skel { animation: none; background: var(--surface-sunk); }
 }
 
 .nl-row--expandable { cursor: pointer; }
@@ -65,3 +66,15 @@
 .nl-detail svg { max-width: 100%; }
 .nl-error { color: var(--rust); font-family: var(--font-mono); font-size: 12px; margin: 0; }
 .nl-note { color: var(--ink-faint); font-family: var(--font-mono); font-size: 12px; margin: 0; }
+
+/* load skeleton — nacre sweep (NOT a grey pulse); keyframe MUST be nl-skel-sweep
+   to avoid clobbering App.css's nl-shimmer (chart). */
+.nl-skel {
+  display: block; height: 11px; border-radius: 4px;
+  background: linear-gradient(100deg,
+    var(--surface-sunk) 30%, rgba(215,206,242,.55) 45%,
+    rgba(248,221,201,.55) 55%, var(--surface-sunk) 70%);
+  background-size: 200% 100%;
+  animation: nl-skel-sweep 1.4s ease-in-out infinite;
+}
+@keyframes nl-skel-sweep { to { background-position: -200% 0; } }

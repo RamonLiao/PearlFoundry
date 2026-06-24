@@ -58,6 +58,33 @@ export default function Leaderboard({ account }) {
       {msg && <pre className="nl-error">{msg}</pre>}
       {rows.length === 0 && !msg && !loading && <p className="nl-empty">No settled notes yet.</p>}
 
+      {loading && rows.length === 0 && (
+        <table className="nl-table" aria-hidden="true">
+          <thead>
+            <tr>
+              <th className="nl-th nl-th--rank">Rank</th>
+              <th className="nl-th">Issuer</th>
+              <th className="nl-th nl-th--num">Realized PnL</th>
+              <th className="nl-th nl-th--num">Win Rate</th>
+              <th className="nl-th nl-th--num">Notes</th>
+              <th className="nl-th nl-th--num">Perf Fee</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[0, 1, 2, 3].map((i) => (
+              <tr className="nl-row" key={i} style={{ animation: 'none', opacity: 1 }}>
+                <td className="nl-td nl-td--rank"><span className="nl-skel" style={{ width: 24 }} /></td>
+                <td className="nl-td"><span className="nl-skel" style={{ width: '60%' }} /></td>
+                <td className="nl-td nl-td--num"><span className="nl-skel" style={{ width: '50%', marginLeft: 'auto' }} /></td>
+                <td className="nl-td nl-td--num"><span className="nl-skel" style={{ width: '45%', marginLeft: 'auto' }} /></td>
+                <td className="nl-td nl-td--num"><span className="nl-skel" style={{ width: '30%', marginLeft: 'auto' }} /></td>
+                <td className="nl-td nl-td--num"><span className="nl-skel" style={{ width: '50%', marginLeft: 'auto' }} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
       {rows.length > 0 && (
         <table className="nl-table">
           <thead>
