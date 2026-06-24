@@ -1,6 +1,7 @@
 # Progress — Structured Note Factory
 
 ## TODO（下一輪，建議新 chat）
+- [ ] **🔴 下一輪：UI 調整**（使用者指定）。payoff diagram 功能已完成並 live 驗過；下一輪聚焦視覺/排版微調。可能項目參考下方候選 + payoff compact 圖的 forward 紅虛線在窄圖可見度（疑似偏淡，待確認）。
 - [x] **🔴 UI 全面重設計 ✅ 完成（2026-06-23）— 見 Current Task**：dark→light「Nacre Light」水底珍珠風，已 merge local `main`（merge `fcafb1f`，待 push）。
 - [ ] **（前端互動候選）** sponsored-tx gas station / payoff diagram / 其他 strategy / 有梗的 empty+loading 狀態（final review N10 提的 faded clam + skeleton）。
 - [x] **logo 最終定案 ✅（2026-06-23）**：使用者選 logo_3 去白底版。`frontend/public/logo-mark.png` ← logo_3-clear（透明底 342×341，corner flood-fill 去外圍白、中央圖案不動），`App.jsx:44` src → `/logo-mark.png`，build green。三張 clear 變體 + ondark 預覽整理在 `docs/logo-clear/`（含 README），**保留待之後加進前端讓畫面更活潑**（mint 動畫/空狀態插圖/loading 等）。舊 `logo-mark-tinted.png` 已無 caller，留作備份。
@@ -16,6 +17,7 @@
 - **仍 deferred（次要）**：MyNotes 展開的 **compact 圖實際 render** 在使用者瀏覽器（我的 playwright 無錢包連不上 MyNotes）；claimable 結算落點需等該 note 到期結算後才看得到。資料路徑全綠。
 
 ## Recently Completed
+- **2026-06-24 — Payoff diagram ✅ 完成 + live 全驗（merge local `main` `706b76f`，含 4 個 live-run fix，未 push）**：Range Accrual 收益階梯圖（mint 卡 preview + MyNotes 行內 compact）。SDD 6 task + opus 全分支 review（零 Critical/Important）+ 71/71 tests。**live-run 抓修 4 bug**：(1) `/note-params` ParamsKey 需 `value:{dummy_field:false}`（`4150448`）；(2) CORS header（`dd9f719`）；(3) ConnectButton 帳號下拉被卡片蓋（masthead `position:relative`+`z-index:20`，`b93c6a2`）；(4) [server.js 只服務 HTTP 不 ingest → 需另跑 `ingest.js`]。**使用者真錢包 live 驗過**：mint round-trip OK（note `0x136990dd…`）、MyNotes 16-leg compact 階梯圖 render 正確。commits 在 local `main` tip≈`b93c6a2`+progress，**全未 push**。
 - **2026-06-23 — Nacre Light UI 重設計 ✅ 完成、merge local `main`（merge `fcafb1f` --no-ff，build green，feature branch 已刪，未 push）**：dark→light 水底珍珠風。
 - **2026-06-23 — logo 定案 + Nacre 遷移 push ✅**：masthead logo = logo_3 去白底版（commit `a5b8d77`，build green）；Nacre Ledger 遷移已 push `origin/main`（`faef861`）。logo commit `a5b8d77` **待 push**（classifier 擋直推 default branch，使用者手動 push）。live masthead 截圖確認 logo 在暗背景乾淨融合，但使用者判定整體 UI「太醜」→ 下一輪重設計。
 - **2026-06-23 — 整站 Nacre Ledger 遷移 ✅ 完成、已 merge 進 local `main`（merge `90c434a` --no-ff，build green）、已 push `faef861`**
