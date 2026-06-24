@@ -3,6 +3,7 @@ import { leaderboard, listNotes, pendingSettle, feeStats } from './queries.js';
 import { hexToUtf8, hexToBase64 } from './decode.js';
 import { computeQtyPerLeg } from '../pricing/qty.js';
 import { CFG, PKG } from '../integration/config.js';
+import { deriveLeftover } from './leftover.js';
 
 // Local dev dApp is served cross-origin (vite :5173 → api :8787); allow CORS so the
 // browser can reach these routes. Permissive origin is fine for a local/testnet tool.
@@ -96,7 +97,8 @@ export function createServer(db, { client, txdeps } = {}) {
         }
         if (p === '/quote') {
           if (!body.sender || !body.mgr) return json(res, 400, { error: 'sender, mgr required', code: 'BAD_PARAMS' });
-          return json(res, 200, await quote(client, txdeps, body));
+          const q = await quote(client, txdeps, body);
+          return json(res, q.status ?? 200, q.body ?? q);
         }
         if (p === '/claim-tx') {
           if (!body.sender || !body.note || !body.mgr || !body.oracle)
@@ -117,6 +119,14 @@ async function quote(client, txdeps, { sender, mgr, asset = 'BTC', expiry: bodyE
   const lad = await txdeps.computeLadder({ client, asset, expiry, notional, mgr, dusdcCoin: coin.coinId, sender });
   const tx = txdeps.buildMintTx({ sender, mgr, oracle: lad.oracleId, dusdcCoin: coin.coinId,
     notional, lower: lad.lower, upper: lad.upper, step: lad.step, expiryTotal: 1, asset });
+  // Dry-run the exact mint we'd sign: doubles as a staleness guard and the leftover source
+  // (leftover = net − Σ PositionMinted.cost). Fail loud rather than return a bogus preview.
+  const txBytes = await tx.build({ client });
+  const dr = await client.dryRunTransactionBlock({ transactionBlock: Buffer.from(txBytes).toString('base64') });
+  if (dr.effects.status.status !== 'success') {
+    return { status: 502, body: { error: `mint dry-run failed: ${dr.effects.status.error}`, code: 'QUOTE_DRYRUN_FAILED' } };
+  }
+  const { leftover } = deriveLeftover(dr.events);
   // Authoritative fee_bps from FactoryConfig so the preview can't drift from the contract.
   const cfgObj = await client.getObject({ id: CFG, options: { showContent: true } });
   const feeBps = Number(cfgObj.data?.content?.fields?.fee_bps ?? 30);
@@ -126,6 +136,7 @@ async function quote(client, txdeps, { sender, mgr, asset = 'BTC', expiry: bodyE
     forward: lad.forward.toString(),
     qtyPerLeg: qtyPerLeg.toString(),
     oracleId: lad.oracleId, expiry, tx: tx.serialize(),
+    leftover: leftover.toString(),
   };
 }
 

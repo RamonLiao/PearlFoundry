@@ -75,6 +75,14 @@ const fakeClient = {
       hurdle_bps: 10000,
     } } } } },
   }),
+  dryRunTransactionBlock: async () => ({
+    effects: { status: { status: 'success' } },
+    events: [
+      { type: 'p::events::BalanceEvent', parsedJson: { amount: '9970000', deposit: true } },
+      { type: 'p::predict::PositionMinted', parsedJson: { cost: '300000', quantity: '5', strike: '1' } },
+      { type: 'p::predict::PositionMinted', parsedJson: { cost: '300000', quantity: '5', strike: '2' } },
+    ],
+  }),
   queryEvents: async () => ({
     data: [{
       parsedJson: {
@@ -91,7 +99,7 @@ const fakeClient = {
 const fakeTxdeps = {
   buildCreateManagerTx: ({ sender }) => ({ serialize: () => `CM:${sender}` }),
   computeLadder: async ({ sender, mgr }) => ({ lower: 1n, upper: 2n, step: 1n, oracleId: '0xorc', legs: 5, forward: 95000n }),
-  buildMintTx: ({ sender, mgr }) => ({ serialize: () => `MINT:${sender}:${mgr}` }),
+  buildMintTx: ({ sender, mgr }) => ({ serialize: () => `MINT:${sender}:${mgr}`, build: async () => new Uint8Array([1]) }),
   buildClaimTx: ({ sender, note }) => ({ serialize: () => `CLAIM:${sender}:${note}` }),
   pickDusdcCoin: async () => ({ coinId: '0xcoin', total: 1000n }),
   pickLiveExpiry: async () => '1750000000',
@@ -133,6 +141,21 @@ test('tx route 503 when no client wired', async () => {
   const srv = createServer(fakeDb); // intentionally no client
   const { status } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
   assert.equal(status, 503);
+});
+
+test('POST /quote returns leftover from mint dry-run', async () => {
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
+  assert.equal(status, 200);
+  assert.equal(j.leftover, '9370000'); // 9970000 − (300000+300000)
+});
+
+test('POST /quote 502 when mint dry-run fails', async () => {
+  const bad = { ...fakeClient, dryRunTransactionBlock: async () => ({ effects: { status: { status: 'failure', error: 'MoveAbort … 7' } }, events: [] }) };
+  const srv = createServer(fakeDb, { client: bad, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
+  assert.equal(status, 502);
+  assert.equal(j.code, 'QUOTE_DRYRUN_FAILED');
 });
 
 test('GET /note-params returns range params + oracle forward', async () => {
