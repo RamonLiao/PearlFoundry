@@ -38,3 +38,10 @@ test('shortId returns short input unchanged (no negative-index surprise)', () =>
   assert.equal(shortId('0xabcd'), '0xabcd'); // length 6 <= 6+4
   assert.equal(shortId('0x', 6, 4), '0x');
 });
+
+// boundary: at head+tail+1 (=11 with defaults) truncation would only drop ONE char and
+// add "…" — not shorter, so the id must be returned unchanged. One char longer DOES truncate.
+test('shortId leaves a head+tail+1 length id unchanged, truncates at +2', () => {
+  assert.equal(shortId('0x123456789'), '0x123456789'); // length 11 = 6+4+1 → unchanged
+  assert.equal(shortId('0x1234567890'), '0x1234…7890'); // length 12 → truncates
+});

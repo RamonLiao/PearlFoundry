@@ -12,6 +12,8 @@
  */
 export function shortId(id, head = 6, tail = 4) {
   if (typeof id !== 'string' || id.length === 0) return '';
-  if (id.length <= head + tail) return id;
+  // +1: truncating only pays off when it removes >1 char. At length head+tail+1 the
+  // "…" would replace a single dropped char — no shorter, so return the id unchanged.
+  if (id.length <= head + tail + 1) return id;
   return `${id.slice(0, head)}…${id.slice(-tail)}`;
 }
