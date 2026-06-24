@@ -171,6 +171,22 @@
   100% { transform: translateY(-112vh) translateX(34px); opacity: 0; }
 }
 
+/* ── Payoff chart entrance + finite shimmer ───────────────────────────────── */
+/* line draws left→right first; fill + dots are absent until it finishes (from-nothing reveal) */
+.nl-draw { stroke-dasharray: 1600; stroke-dashoffset: 1600; animation: nl-draw 1100ms ease forwards; }
+@keyframes nl-draw { to { stroke-dashoffset: 0; } }
+.nl-dotgate { opacity: 0; animation: nl-fillin 700ms ease 1100ms forwards; }
+@keyframes nl-fillin { to { opacity: 1; } }
+/* shimmer: finite (3 loops) via saturate on the fill polygon; starts after fill fades in */
+.nl-shimmerstops { /* marker only; shimmer applied to the fill polygon below */ }
+.nl-fillgate {
+  opacity: 0;
+  animation: nl-fillin 700ms ease 1100ms forwards, nl-shimmer 2200ms ease-in-out 1900ms 3;
+}
+@keyframes nl-shimmer { 0%, 100% { filter: saturate(1); } 50% { filter: saturate(1.18) brightness(1.04); } }
+/* static override: caller opted out (compact rows) */
+.nl-noanim { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
+
 @media (prefers-reduced-motion: reduce) {
   .nl-section, .nl-status { opacity: 1; transform: none; animation: none; }
   .nl-statuspip--claimable { animation: none; }
@@ -179,6 +195,7 @@
   .nl-btn--primary { transition: none; }
   .nl-caustic, .nl-bubble { animation: none; }
   .nl-bubble { opacity: 0; }
+  .nl-draw, .nl-fillgate, .nl-dotgate { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
 }
 
 /* ── Payoff preview panel ─────────────────────────────────────────────────── */

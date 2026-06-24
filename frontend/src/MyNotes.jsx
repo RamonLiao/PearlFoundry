@@ -183,7 +183,7 @@ export default function MyNotes({ account, signExec }) {
                           : paramsCache[n.note_id]?.curve
                             ? <PayoffChart curve={paramsCache[n.note_id].curve}
                                 forward={paramsCache[n.note_id].forward}
-                                settlementPrice={paramsCache[n.note_id].settlementPrice} size="full" />
+                                settlementPrice={paramsCache[n.note_id].settlementPrice} size="full" animated={false} />
                             : <p className="nl-note">Loading payoff…</p>}
                       </td>
                     </tr>
