@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
-import { getNotes, getOracle, postTx } from './api.js';
+import { getNotes, getOracle, getNoteParams, postTx } from './api.js';
+import { computePayoffCurve } from './payoff.js';
+import PayoffChart from './PayoffChart.jsx';
 import { EXPLORER } from './config.js';
 import './Leaderboard.css';
 import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNotes styling resolves even if rendered standalone
@@ -22,6 +24,26 @@ export default function MyNotes({ account, signExec }) {
   const [msg, setMsg] = useState('');
   const [msgKind, setMsgKind] = useState(/** @type {''|'ok'|'err'} */ (''));
   const [claiming, setClaiming] = useState(/** @type {string|null} */ (null));
+  const [expanded, setExpanded] = useState(null);     // note_id currently open
+  const [paramsCache, setParamsCache] = useState({}); // note_id -> { curve, forward, settlementPrice } | { error }
+
+  async function toggleExpand(n) {
+    if (expanded === n.note_id) { setExpanded(null); return; }
+    setExpanded(n.note_id);
+    if (paramsCache[n.note_id]) return;
+    try {
+      const asset = n.strategy || 'BTC';
+      const { params, forward, settlementPrice } = await getNoteParams(n.note_id, asset, n.expiry_ts_ms);
+      const curve = computePayoffCurve({
+        lower: params.lower, upper: params.upper, step: params.strike_step, qtyPerLeg: params.qty_per_leg,
+      });
+      setParamsCache((c) => ({ ...c, [n.note_id]: {
+        curve, forward: forward != null ? Number(forward) : undefined,
+        settlementPrice: settlementPrice != null ? Number(settlementPrice) : null } }));
+    } catch (e) {
+      setParamsCache((c) => ({ ...c, [n.note_id]: { error: e.message } }));
+    }
+  }
 
   async function load() {
     setMsg('');
@@ -114,28 +136,43 @@ export default function MyNotes({ account, signExec }) {
               const isClaiming = claiming === n.note_id;
               const state = n.settled ? 'settled' : expired ? 'claimable' : 'pending';
               return (
-                <tr key={n.note_id} className="nl-row" style={{ '--i': i }}>
-                  <td className="nl-td" title={n.note_id}>{n.note_id.slice(0, 12)}…</td>
-                  <td className="nl-td">{new Date(Number(n.expiry_ts_ms)).toISOString().slice(0, 16).replace('T', ' ')}</td>
-                  <td className="nl-td">
-                    <span className={`nl-statuspip nl-statuspip--${state}`} />
-                    {state === 'settled' ? 'Settled' : state === 'claimable' ? 'Claimable' : 'Pending'}
-                  </td>
-                  <td className="nl-td nl-td--num">
-                    {state === 'claimable'
-                      ? (
-                        <button
-                          className="nl-btn"
-                          disabled={isClaiming || !!claiming}
-                          onClick={() => claim(n)}
-                          aria-busy={isClaiming}
-                        >
-                          {isClaiming ? 'Claiming…' : 'Claim'}
-                        </button>
-                      )
-                      : <span style={{ color: 'var(--pearl-dim)' }}>—</span>}
-                  </td>
-                </tr>
+                <Fragment key={n.note_id}>
+                  <tr className={`nl-row${state !== 'settled' ? ' nl-row--expandable' : ''}`} style={{ '--i': i }} onClick={() => state !== 'settled' && toggleExpand(n)}>
+                    <td className="nl-td" title={n.note_id}>{n.note_id.slice(0, 12)}…</td>
+                    <td className="nl-td">{new Date(Number(n.expiry_ts_ms)).toISOString().slice(0, 16).replace('T', ' ')}</td>
+                    <td className="nl-td">
+                      <span className={`nl-statuspip nl-statuspip--${state}`} />
+                      {state === 'settled' ? 'Settled' : state === 'claimable' ? 'Claimable' : 'Pending'}
+                    </td>
+                    <td className="nl-td nl-td--num">
+                      {state === 'claimable'
+                        ? (
+                          <button
+                            className="nl-btn"
+                            disabled={isClaiming || !!claiming}
+                            onClick={(e) => { e.stopPropagation(); claim(n); }}
+                            aria-busy={isClaiming}
+                          >
+                            {isClaiming ? 'Claiming…' : 'Claim'}
+                          </button>
+                        )
+                        : <span style={{ color: 'var(--pearl-dim)' }}>—</span>}
+                    </td>
+                  </tr>
+                  {expanded === n.note_id && state !== 'settled' && (
+                    <tr className="nl-detailrow">
+                      <td colSpan={4} className="nl-detail">
+                        {paramsCache[n.note_id]?.error
+                          ? <p className="nl-error">{paramsCache[n.note_id].error}</p>
+                          : paramsCache[n.note_id]?.curve
+                            ? <PayoffChart curve={paramsCache[n.note_id].curve}
+                                forward={paramsCache[n.note_id].forward}
+                                settlementPrice={paramsCache[n.note_id].settlementPrice} size="compact" />
+                            : <p className="nl-note">Loading payoff…</p>}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>

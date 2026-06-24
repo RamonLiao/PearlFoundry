@@ -23,6 +23,13 @@ export async function getLeaderboard() {
   return Array.isArray(j) ? j : [];
 }
 
+export async function getNoteParams(note, asset, expiry) {
+  const r = await fetch(`${API}/note-params?note=${encodeURIComponent(note)}&asset=${encodeURIComponent(asset)}&expiry=${encodeURIComponent(expiry)}`);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || 'note params lookup failed'); e.code = j.code; throw e; }
+  return j; // { params, forward, settlementPrice }
+}
+
 export async function getOracle(asset, expiry) {
   const r = await fetch(`${API}/oracle?asset=${encodeURIComponent(asset)}&expiry=${encodeURIComponent(expiry)}`);
   const j = await r.json();

@@ -12,6 +12,13 @@
   --jade: #2c9b6f;
   --rust: #cc6a4f;
   --molten: linear-gradient(135deg, #f8d27e, #e0a03c);
+  /* chart (SVG strokes can't consume gradient vars) — flat stops of --molten */
+  --molten-start: #f8d27e;
+  --molten-end: #e0a03c;
+  --chart-axis: var(--hairline);
+  --chart-grid: rgba(58, 51, 64, 0.05);
+  --chart-tick: var(--ink-faint);   /* #9b8f99, WCAG-corrected */
+  --chart-fwd: var(--gold-ink);     /* #9a6a1e, label text ≥4.5:1 */
   --pinkgold: linear-gradient(120deg, #f9d27c 0%, #f0b56a 45%, #ec8aa6 100%);
   --brass: #9c8045;
   --nacre-accent: #c9c1e8;

@@ -1,6 +1,8 @@
 import http from 'node:http';
 import { leaderboard, listNotes, pendingSettle, feeStats } from './queries.js';
 import { hexToUtf8, hexToBase64 } from './decode.js';
+import { computeQtyPerLeg } from '../pricing/qty.js';
+import { CFG, PKG } from '../integration/config.js';
 
 const json = (res, code, body) => {
   res.writeHead(code, { 'content-type': 'application/json' });
@@ -36,6 +38,42 @@ export function createServer(db, { client, txdeps } = {}) {
           const { oracleId } = await resolveOracle(client, asset, BigInt(expiry));
           return json(res, 200, { oracleId });
         }
+        if (p === '/note-params') {
+          if (!client || !txdeps) return json(res, 503, { error: 'tx routes not configured', code: 'NO_CLIENT' });
+          const note = url.searchParams.get('note');
+          const asset = url.searchParams.get('asset') ?? 'BTC';
+          const expiry = url.searchParams.get('expiry');
+          if (!note || !expiry) return json(res, 400, { error: 'note, expiry required', code: 'BAD_PARAMS' });
+          const { resolveOracle } = await import('../pricing/oracle.js');
+          // RangeParams lives as a dynamic field under the note, keyed by the unit struct note::ParamsKey.
+          const dfo = await client.getDynamicFieldObject({
+            parentId: note,
+            name: { type: `${PKG}::note::ParamsKey`, value: {} },
+          });
+          const pf = dfo.data?.content?.fields;
+          // df value object wraps the stored struct under `.value.fields` (JSON-RPC layout for
+          // a struct-valued dynamic field). Fall back to flat fields if the layout differs.
+          const rp = pf?.value?.fields ?? pf;
+          if (!rp || rp.lower == null) {
+            return json(res, 404, { error: 'no params (note may be claimed/deleted)', code: 'NO_PARAMS' });
+          }
+          const params = {
+            version: Number(rp.version), lower: rp.lower, upper: rp.upper,
+            strike_step: rp.strike_step, qty_per_leg: rp.qty_per_leg,
+            legs_per_expiry: Number(rp.legs_per_expiry), expiry_count: Number(rp.expiry_count),
+            hurdle_bps: Number(rp.hurdle_bps),
+          };
+          // Oracle forward / settlement_price — read raw (NOT fetchOracle, which throws on settled).
+          let forward = null, settlementPrice = null;
+          try {
+            const { oracleId } = await resolveOracle(client, asset, BigInt(expiry));
+            const oc = await client.getObject({ id: oracleId, options: { showContent: true } });
+            const f = oc.data?.content?.fields;
+            settlementPrice = f?.settlement_price ?? null;
+            forward = f?.prices?.fields?.forward ?? null;
+          } catch (e) { console.error('[note-params] oracle read failed (forward optional):', e.message); }
+          return json(res, 200, { params, forward, settlementPrice });
+        }
       }
       if (req.method === 'POST') {
         if (!client || !txdeps) return json(res, 503, { error: 'tx routes not configured', code: 'NO_CLIENT' });
@@ -68,8 +106,16 @@ async function quote(client, txdeps, { sender, mgr, asset = 'BTC', expiry: bodyE
   const lad = await txdeps.computeLadder({ client, asset, expiry, notional, mgr, dusdcCoin: coin.coinId, sender });
   const tx = txdeps.buildMintTx({ sender, mgr, oracle: lad.oracleId, dusdcCoin: coin.coinId,
     notional, lower: lad.lower, upper: lad.upper, step: lad.step, expiryTotal: 1, asset });
-  return { ladder: { lower: lad.lower.toString(), upper: lad.upper.toString(), step: lad.step.toString() },
-           oracleId: lad.oracleId, expiry, tx: tx.serialize() };
+  // Authoritative fee_bps from FactoryConfig so the preview can't drift from the contract.
+  const cfgObj = await client.getObject({ id: CFG, options: { showContent: true } });
+  const feeBps = Number(cfgObj.data?.content?.fields?.fee_bps ?? 30);
+  const qtyPerLeg = computeQtyPerLeg({ notional, feeBps, legs: lad.legs, expiryCount: 1 });
+  return {
+    ladder: { lower: lad.lower.toString(), upper: lad.upper.toString(), step: lad.step.toString() },
+    forward: lad.forward.toString(),
+    qtyPerLeg: qtyPerLeg.toString(),
+    oracleId: lad.oracleId, expiry, tx: tx.serialize(),
+  };
 }
 
 // CLI: node server.js <dbPath> <port>

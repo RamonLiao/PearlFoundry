@@ -57,3 +57,9 @@
   .nl-row { opacity: 1; transform: none; animation: none; }
   .nl-row, .nl-refresh { transition: none; }
 }
+
+.nl-row--expandable { cursor: pointer; }
+.nl-detailrow .nl-detail { padding: 8px 12px 14px; background: rgba(58, 51, 64, 0.02); }
+.nl-detail svg { max-width: 420px; }
+.nl-error { color: var(--rust); font-family: var(--font-mono); font-size: 12px; margin: 0; }
+.nl-note { color: var(--ink-faint); font-family: var(--font-mono); font-size: 12px; margin: 0; }

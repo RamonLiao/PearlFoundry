@@ -47,9 +47,50 @@ function callRoute(server, method, path, body) {
 }
 
 const fakeDb = { prepare: () => ({ all: () => [], get: () => ({}) }) };
+
+// CFG constant from config.js
+const CFG_ID = '0xc8516309c6c65dd71a910a966abb8e74284ecb49eaaae1607acbf7440f249351';
+const FAKE_ORACLE_ID = '0xoracle';
+
+const fakeClient = {
+  getObject: async ({ id }) => {
+    if (id === CFG_ID) {
+      return { data: { content: { fields: { fee_bps: 30 } } } };
+    }
+    // oracle object shape
+    return { data: { content: { fields: {
+      settlement_price: null,
+      prices: { fields: { forward: '95000' } },
+    } } } };
+  },
+  getDynamicFieldObject: async () => ({
+    data: { content: { fields: { value: { fields: {
+      version: 1,
+      lower: '60000000000000',
+      upper: '66000000000000',
+      strike_step: '1000000000000',
+      qty_per_leg: '1424285',
+      legs_per_expiry: 7,
+      expiry_count: 1,
+      hurdle_bps: 10000,
+    } } } } },
+  }),
+  queryEvents: async () => ({
+    data: [{
+      parsedJson: {
+        underlying_asset: 'BTC',
+        expiry: '1750000000',
+        oracle_id: FAKE_ORACLE_ID,
+        tick_size: '1000000000000',
+        min_strike: '50000000000000',
+      },
+    }],
+    hasNextPage: false,
+  }),
+};
 const fakeTxdeps = {
   buildCreateManagerTx: ({ sender }) => ({ serialize: () => `CM:${sender}` }),
-  computeLadder: async ({ sender, mgr }) => ({ lower: 1n, upper: 2n, step: 1n, oracleId: '0xorc' }),
+  computeLadder: async ({ sender, mgr }) => ({ lower: 1n, upper: 2n, step: 1n, oracleId: '0xorc', legs: 5, forward: 95000n }),
   buildMintTx: ({ sender, mgr }) => ({ serialize: () => `MINT:${sender}:${mgr}` }),
   buildClaimTx: ({ sender, note }) => ({ serialize: () => `CLAIM:${sender}:${note}` }),
   pickDusdcCoin: async () => ({ coinId: '0xcoin', total: 1000n }),
@@ -57,29 +98,31 @@ const fakeTxdeps = {
 };
 
 test('POST /create-manager-tx returns serialized tx', async () => {
-  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
   const { status, j } = await callRoute(srv, 'POST', '/create-manager-tx', { sender: '0xS' });
   assert.equal(status, 200);
   assert.equal(j.tx, 'CM:0xS');
 });
 
 test('POST /create-manager-tx 400 on missing sender', async () => {
-  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
   const { status, j } = await callRoute(srv, 'POST', '/create-manager-tx', {});
   assert.equal(status, 400);
   assert.equal(j.code, 'BAD_PARAMS');
 });
 
 test('POST /quote returns ladder + tx', async () => {
-  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
   const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
   assert.equal(status, 200);
   assert.equal(j.oracleId, '0xorc');
   assert.equal(j.tx, 'MINT:0xS:0xM');
+  assert.equal(j.forward, '95000');
+  assert.ok(BigInt(j.qtyPerLeg) > 0n);
 });
 
 test('POST /quote omits expiry — auto-picks via pickLiveExpiry', async () => {
-  const srv = createServer(fakeDb, { client: {}, txdeps: fakeTxdeps });
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
   const { status, j } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM' });
   assert.equal(status, 200);
   assert.equal(j.oracleId, '0xorc');
@@ -87,7 +130,18 @@ test('POST /quote omits expiry — auto-picks via pickLiveExpiry', async () => {
 });
 
 test('tx route 503 when no client wired', async () => {
-  const srv = createServer(fakeDb);
+  const srv = createServer(fakeDb); // intentionally no client
   const { status } = await callRoute(srv, 'POST', '/quote', { sender: '0xS', mgr: '0xM', expiry: '1750000000' });
   assert.equal(status, 503);
+});
+
+test('GET /note-params returns range params + oracle forward', async () => {
+  const srv = createServer(fakeDb, { client: fakeClient, txdeps: fakeTxdeps });
+  const { status, j } = await callRoute(srv, 'GET', '/note-params?note=0xNOTE&asset=BTC&expiry=1750000000', null);
+  assert.equal(status, 200);
+  assert.equal(j.params.lower, '60000000000000');
+  assert.equal(j.params.upper, '66000000000000');
+  assert.ok(j.params.strike_step, 'strike_step present');
+  assert.equal(j.forward, '95000');
+  assert.equal(j.settlementPrice, null);
 });
