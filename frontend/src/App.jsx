@@ -165,6 +165,7 @@ export default function App() {
               const curve = computePayoffCurve({
                 lower: preview.ladder.lower, upper: preview.ladder.upper,
                 step: preview.ladder.step, qtyPerLeg: preview.qtyPerLeg,
+                leftover: preview.leftover ?? 0,
               });
               return (
                 <div className="nl-preview">

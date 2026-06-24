@@ -40,9 +40,10 @@ export default function MyNotes({ account, signExec }) {
     setExpanded(n.note_id);
     if (paramsCache[n.note_id]) return;
     try {
-      const { params, forward, settlementPrice } = await getNoteParams(n.note_id, UNDERLYING, n.expiry_ts_ms);
+      const { params, forward, settlementPrice, leftover } = await getNoteParams(n.note_id, UNDERLYING, n.expiry_ts_ms);
       const curve = computePayoffCurve({
         lower: params.lower, upper: params.upper, step: params.strike_step, qtyPerLeg: params.qty_per_leg,
+        leftover: leftover ?? 0,
       });
       setParamsCache((c) => ({ ...c, [n.note_id]: {
         curve, forward: forward != null ? Number(forward) : undefined,
