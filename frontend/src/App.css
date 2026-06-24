@@ -182,7 +182,7 @@
 }
 
 /* ── Payoff preview panel ─────────────────────────────────────────────────── */
-.nl-preview { margin-top: 14px; }
+.nl-preview { margin-top: 14px; max-height: 70vh; overflow-y: auto; }
 .nl-cap { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em;
   text-transform: uppercase; color: var(--ink-faint); margin: 0 0 8px; }
 .nl-preview-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
