@@ -217,14 +217,34 @@ export default function MyNotes({ account, signExec, dAppKit, client, sponsorAva
                     <td className="nl-td nl-td--num">
                       {state === 'claimable'
                         ? (
-                          <button
-                            className="nl-btn nl-btn--primary"
-                            disabled={isClaiming || !!claiming}
-                            onClick={(e) => { e.stopPropagation(); claim(n); }}
-                            aria-busy={isClaiming}
-                          >
-                            {isClaiming ? 'Claiming…' : 'Claim'}
-                          </button>
+                          <>
+                            {sponsorAvailable && !forceSelfPay && (
+                              <span className="nl-gaschip">
+                                <svg className="nl-li" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                                  <circle cx="6" cy="7.5" r="2.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                                  <path d="M6 4.6 q1.2 -1.8 0 -3.4 q-1.2 1.6 0 3.4 Z" fill="currentColor" />
+                                </svg>
+                                gas-free
+                              </span>
+                            )}
+                            <button
+                              className="nl-btn nl-btn--primary nl-claim-btn"
+                              disabled={isClaiming || !!claiming}
+                              aria-busy={isClaiming}
+                              onClick={(e) => { e.stopPropagation(); claim(n); }}
+                            >
+                              {!isClaiming && 'Claim'}
+                              {isClaiming && claimPhase === 'sponsoring' && (<><span className="nl-spinner" aria-hidden="true"><i/><i/><i/></span>Sponsoring…</>)}
+                              {isClaiming && claimPhase === 'awaiting-sign' && 'Approve in wallet →'}
+                              {isClaiming && (claimPhase === 'submitting' || claimPhase === null) && (<><span className="nl-spinner" aria-hidden="true"><i/><i/><i/></span>Submitting…</>)}
+                            </button>
+                            <span className="sr-only" role="status" aria-live="polite">
+                              {claimPhase === 'sponsoring' && 'Requesting gas sponsor'}
+                              {claimPhase === 'awaiting-sign' && 'Approve the claim in your wallet'}
+                              {claimPhase === 'submitting' && 'Submitting your claim'}
+                              {!isClaiming && msgKind === 'ok' && msg}
+                            </span>
+                          </>
                         )
                         : state === 'settled' && n.payout != null
                           ? (() => {

@@ -295,3 +295,15 @@
 .nl-btn--primary .nl-spinner i { background: #3d1a28; }
 /* pin width so swapping "Mint Range Note"→"Preparing…" + dots doesn't reflow .nl-issue-row */
 .nl-issue-row .nl-btn--primary { min-width: 196px; justify-content: center; }
+
+/* gas-free chip — borrows the .nl-pill recipe; gold-ink on sunk surface (~4.6:1 AA). */
+.nl-gaschip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono); font-size: 10px; line-height: 1;
+  color: var(--gold-ink); background: var(--surface-sunk);
+  border: 1px solid var(--hairline); border-radius: 999px;
+  padding: 2px 8px; margin-right: 8px; vertical-align: middle;
+}
+.nl-gaschip .nl-li { color: var(--gold-ink); }
+/* pin width so 'Approve in wallet →' doesn't reflow the cell */
+.nl-claim-btn { min-width: 150px; }
