@@ -19,7 +19,9 @@ export async function sponsoredClaim({ dAppKit, client, sender, note, mgr, oracl
         body: JSON.stringify({ sender, note, mgr, oracle }),
       });
     } catch (e) { throw tag(e, 'request'); }
-    resp = await r.json();
+    // A non-JSON body (e.g. a gateway HTML 502) must still tag 'request' so it silently falls back
+    // to self-pay rather than surfacing an untagged SyntaxError.
+    try { resp = await r.json(); } catch (e) { throw tag(e, 'request', { code: 'BAD_SPONSOR_RESPONSE', status: r.status }); }
     if (!r.ok) throw tag(new Error(resp.error || 'sponsor-claim failed'), 'request', { code: resp.code, status: r.status });
   }
   const { tx: txBytes, sponsorSig } = resp;

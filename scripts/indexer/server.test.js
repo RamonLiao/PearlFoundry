@@ -348,7 +348,8 @@ function claimTxMock() {
     _calls: calls,
   };
 }
-const sponsorTxdeps = { ...fakeTxdeps, buildClaimTx: ({ sender, note }) => claimTxMock() };
+let lastClaimTx; // captured so the CAP-pin test can assert the gas mutations on the built tx
+const sponsorTxdeps = { ...fakeTxdeps, buildClaimTx: ({ sender, note }) => (lastClaimTx = claimTxMock()) };
 const fakeSponsor = { address: '0x' + '9'.repeat(64), keypair: { signTransaction: async () => ({ signature: 'SPONSORSIG' }) } };
 // fakeClient owns notes: SENDER owns NOTE_OK; getCoins funds the sponsor.
 const NOTE_OK = '0x' + '2'.repeat(64);
@@ -407,4 +408,7 @@ test('POST /sponsor-claim returns tx + sponsorSig and pins gas to CAP', async ()
   assert.equal(status, 200);
   assert.equal(j.sponsorSig, 'SPONSORSIG');
   assert.equal(j.tx, Buffer.from([9, 9, 9]).toString('base64'));
+  // gas is pinned server-side: budget == CAP, owner == sponsor (client never supplies these)
+  assert.equal(lastClaimTx._calls.gasBudget, SPONSOR_GAS_CAP);
+  assert.equal(lastClaimTx._calls.gasOwner, fakeSponsor.address);
 });
