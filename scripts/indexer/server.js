@@ -4,6 +4,7 @@ import { hexToUtf8, hexToBase64 } from './decode.js';
 import { computeQtyPerLeg } from '../pricing/qty.js';
 import { CFG, PKG, PREDICT_MGR_TYPE } from '../integration/config.js';
 import { deriveLeftover, deriveParamsFromEvents } from './leftover.js';
+import { pickGasCoins, signSponsored, SPONSOR_GAS_CAP } from '../integration/sponsor.js';
 
 // Local dev dApp is served cross-origin (vite :5173 → api :8787); allow CORS so the
 // browser can reach these routes. Permissive origin is fine for a local/testnet tool.
@@ -50,7 +51,20 @@ async function assertManagerOwner(client, mgr, sender) {
     throw httpErr('MGR_NOT_OWNED', 403, 'manager is not owned by sender');
 }
 
-export function createServer(db, { client, txdeps } = {}) {
+// Cheap owner/exists fail-fast for the claimed note BEFORE the expensive dry-run. Settled-ness is
+// the dry-run's job (authoritative — the real claim PTB aborts on-chain if not settled/already
+// claimed, and we sponsor-sign only after a successful dry-run, so a non-settled note can't drain
+// the sponsor). This guard just rejects foreign/non-existent notes without spending a dry-run.
+async function assertClaimable(client, note, sender) {
+  const want = normAddr(sender);
+  if (!/^0x[0-9a-f]{1,64}$/i.test(String(note))) throw httpErr('BAD_NOTE', 400, `malformed note id: ${note}`);
+  const obj = await client.getObject({ id: note, options: { showOwner: true } });
+  if (!obj?.data) throw httpErr('BAD_NOTE', 400, 'note does not exist');
+  const owner = obj.data.owner?.AddressOwner;
+  if (!owner || normAddr(owner) !== want) throw httpErr('NOTE_NOT_OWNED', 403, 'note is not owned by sender');
+}
+
+export function createServer(db, { client, txdeps, sponsor } = {}) {
   return http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
     const p = url.pathname;
@@ -73,6 +87,8 @@ export function createServer(db, { client, txdeps } = {}) {
           const { oracleId } = await resolveOracle(client, asset, BigInt(expiry));
           return json(res, 200, { oracleId });
         }
+        if (p === '/sponsor-status')
+          return json(res, 200, { available: !!sponsor, address: sponsor?.address ?? null });
         if (p === '/note-params') {
           if (!client || !txdeps) return json(res, 503, { error: 'tx routes not configured', code: 'NO_CLIENT' });
           const note = url.searchParams.get('note');
@@ -153,6 +169,22 @@ export function createServer(db, { client, txdeps } = {}) {
           await assertManagerOwner(client, body.mgr, body.sender);
           return json(res, 200, { tx: txdeps.buildClaimTx(body).serialize() });
         }
+        if (p === '/sponsor-claim') {
+          if (!sponsor) return json(res, 503, { error: 'gas sponsor not configured', code: 'NO_SPONSOR' });
+          if (!body.sender || !body.note || !body.mgr || !body.oracle)
+            return json(res, 400, { error: 'sender, note, mgr, oracle required', code: 'BAD_PARAMS' });
+          await assertManagerOwner(client, body.mgr, body.sender);
+          await assertClaimable(client, body.note, body.sender);
+          const tx = txdeps.buildClaimTx({ sender: body.sender, note: body.note, mgr: body.mgr, oracle: body.oracle });
+          tx.setGasOwner(sponsor.address);
+          tx.setGasPayment(await pickGasCoins(client, sponsor.address, SPONSOR_GAS_CAP));
+          tx.setGasBudget(SPONSOR_GAS_CAP);
+          const { txBytes, sponsorSig } = await signSponsored({ tx, client, keypair: sponsor.keypair });
+          const dr = await client.dryRunTransactionBlock({ transactionBlock: txBytes });
+          if (dr.effects.status.status !== 'success')
+            return json(res, 502, { error: `claim dry-run failed: ${dr.effects.status.error}`, code: 'CLAIM_DRYRUN_FAILED' });
+          return json(res, 200, { tx: txBytes, sponsorSig });
+        }
       }
       return json(res, 404, { error: 'not found' });
     } catch (e) {
@@ -203,5 +235,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number(process.argv[3] ?? 8787);
   const client = new SuiClient({ url: RPC });
   const txdeps = { ...txbuild, pickDusdcCoin, computeLadder, pickLiveExpiry };
-  createServer(db, { client, txdeps }).listen(port, () => console.log(`[indexer+tx] serving on :${port}`));
+  let sponsor = null;
+  try { const { loadSponsor } = await import('../integration/sponsor.js'); sponsor = loadSponsor(); }
+  catch (e) { console.warn('[sponsor] disabled:', e.message); }
+  createServer(db, { client, txdeps, sponsor }).listen(port, () => console.log(`[indexer+tx] serving on :${port}${sponsor ? ` (sponsor ${sponsor.address})` : ''}`));
 }

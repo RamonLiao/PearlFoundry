@@ -333,3 +333,78 @@ test('POST /quote 400 BAD_PARAMS when sender is malformed', async () => {
   assert.equal(status, 400);
   assert.equal(j.code, 'BAD_PARAMS');
 });
+
+// --- sponsor-claim routes ---
+import { SPONSOR_GAS_CAP } from '../integration/sponsor.js';
+
+// A built claim tx mock: records gas mutations, builds to bytes, dry-run handled by fakeClient.
+function claimTxMock() {
+  const calls = {};
+  return {
+    setGasOwner: (a) => { calls.gasOwner = a; },
+    setGasPayment: (c) => { calls.gasPayment = c; },
+    setGasBudget: (b) => { calls.gasBudget = b; },
+    build: async () => new Uint8Array([9, 9, 9]),
+    _calls: calls,
+  };
+}
+const sponsorTxdeps = { ...fakeTxdeps, buildClaimTx: ({ sender, note }) => claimTxMock() };
+const fakeSponsor = { address: '0x' + '9'.repeat(64), keypair: { signTransaction: async () => ({ signature: 'SPONSORSIG' }) } };
+// fakeClient owns notes: SENDER owns NOTE_OK; getCoins funds the sponsor.
+const NOTE_OK = '0x' + '2'.repeat(64);
+const NOTE_FOREIGN = '0x' + '3'.repeat(64);
+const sponsorClient = {
+  ...fakeClient,
+  getObject: async (args) => {
+    if (args.id === NOTE_OK) return { data: { owner: { AddressOwner: SENDER } } };
+    if (args.id === NOTE_FOREIGN) return { data: { owner: { AddressOwner: OTHER } } };
+    return fakeClient.getObject(args);
+  },
+  getCoins: async () => ({ data: [{ coinObjectId: '0xg', version: '1', digest: 'D', balance: '50000000' }], hasNextPage: false }),
+};
+
+test('GET /sponsor-status reports availability', async () => {
+  const on = createServer(fakeDb, { client: sponsorClient, txdeps: sponsorTxdeps, sponsor: fakeSponsor });
+  assert.deepEqual((await callRoute(on, 'GET', '/sponsor-status')).j, { available: true, address: fakeSponsor.address });
+  const off = createServer(fakeDb, { client: sponsorClient, txdeps: sponsorTxdeps });
+  assert.deepEqual((await callRoute(off, 'GET', '/sponsor-status')).j, { available: false, address: null });
+});
+
+test('POST /sponsor-claim 503 when sponsor not configured', async () => {
+  const srv = createServer(fakeDb, { client: sponsorClient, txdeps: sponsorTxdeps });
+  const { status, j } = await callRoute(srv, 'POST', '/sponsor-claim', { sender: SENDER, note: NOTE_OK, mgr: MGR, oracle: FAKE_ORACLE_ID });
+  assert.equal(status, 503); assert.equal(j.code, 'NO_SPONSOR');
+});
+
+test('POST /sponsor-claim 400 on missing field', async () => {
+  const srv = createServer(fakeDb, { client: sponsorClient, txdeps: sponsorTxdeps, sponsor: fakeSponsor });
+  const { status, j } = await callRoute(srv, 'POST', '/sponsor-claim', { sender: SENDER, mgr: MGR, oracle: FAKE_ORACLE_ID });
+  assert.equal(status, 400); assert.equal(j.code, 'BAD_PARAMS');
+});
+
+test('POST /sponsor-claim 403 when mgr not owned by sender', async () => {
+  const srv = createServer(fakeDb, { client: sponsorClient, txdeps: sponsorTxdeps, sponsor: fakeSponsor });
+  const { status, j } = await callRoute(srv, 'POST', '/sponsor-claim', { sender: OTHER, note: NOTE_OK, mgr: MGR, oracle: FAKE_ORACLE_ID });
+  assert.equal(status, 403); assert.equal(j.code, 'MGR_NOT_OWNED');
+});
+
+test('POST /sponsor-claim 403 when note not owned by sender', async () => {
+  const srv = createServer(fakeDb, { client: sponsorClient, txdeps: sponsorTxdeps, sponsor: fakeSponsor });
+  const { status, j } = await callRoute(srv, 'POST', '/sponsor-claim', { sender: SENDER, note: NOTE_FOREIGN, mgr: MGR, oracle: FAKE_ORACLE_ID });
+  assert.equal(status, 403); assert.equal(j.code, 'NOTE_NOT_OWNED');
+});
+
+test('POST /sponsor-claim 502 when claim dry-run fails', async () => {
+  const bad = { ...sponsorClient, dryRunTransactionBlock: async () => ({ effects: { status: { status: 'failure', error: 'MoveAbort claim' } }, events: [] }) };
+  const srv = createServer(fakeDb, { client: bad, txdeps: sponsorTxdeps, sponsor: fakeSponsor });
+  const { status, j } = await callRoute(srv, 'POST', '/sponsor-claim', { sender: SENDER, note: NOTE_OK, mgr: MGR, oracle: FAKE_ORACLE_ID });
+  assert.equal(status, 502); assert.equal(j.code, 'CLAIM_DRYRUN_FAILED');
+});
+
+test('POST /sponsor-claim returns tx + sponsorSig and pins gas to CAP', async () => {
+  const srv = createServer(fakeDb, { client: sponsorClient, txdeps: sponsorTxdeps, sponsor: fakeSponsor });
+  const { status, j } = await callRoute(srv, 'POST', '/sponsor-claim', { sender: SENDER, note: NOTE_OK, mgr: MGR, oracle: FAKE_ORACLE_ID });
+  assert.equal(status, 200);
+  assert.equal(j.sponsorSig, 'SPONSORSIG');
+  assert.equal(j.tx, Buffer.from([9, 9, 9]).toString('base64'));
+});
