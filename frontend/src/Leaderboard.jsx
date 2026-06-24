@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { getLeaderboard } from './api.js';
+import { shortId } from './format.js';
 import './Leaderboard.css';
 
 const DUSDC = 1_000_000; // 6 decimals
@@ -83,7 +84,7 @@ export default function Leaderboard({ account }) {
                     <span className="nl-rank-n">{i + 1}</span>
                   </td>
                   <td className="nl-td nl-issuer" title={r.issuer}>
-                    {(r.issuer ?? '').slice(0, 8)}…{(r.issuer ?? '').slice(-4)}
+                    {shortId(r.issuer, 8, 4)}
                     {isYou && <span className="nl-you">YOU</span>}
                   </td>
                   <td className={`nl-td nl-td--num nl-pnl ${pnl >= 0 ? 'is-pos' : 'is-neg'}`}>

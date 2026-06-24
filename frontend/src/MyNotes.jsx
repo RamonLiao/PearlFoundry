@@ -5,6 +5,7 @@ import { getNotes, getOracle, getNoteParams, postTx } from './api.js';
 import { computePayoffCurve } from './payoff.js';
 import PayoffChart from './PayoffChart.jsx';
 import { EXPLORER, EXPLORER_OBJ } from './config.js';
+import { shortId } from './format.js';
 
 const DUSDC = 1_000_000; // 6 decimals
 // Oracle is keyed by the UNDERLYING price asset (registry::OracleCreated.underlying_asset),
@@ -148,7 +149,7 @@ export default function MyNotes({ account, signExec }) {
                 <Fragment key={n.note_id}>
                   <tr className={`nl-row nl-row--expandable`} style={{ '--i': i }} onClick={() => toggleExpand(n)}>
                     <td className="nl-td" title={n.note_id}>
-                      <a className="nl-hashlink" href={`${EXPLORER_OBJ}${n.note_id}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{n.note_id.slice(0, 12)}…</a>
+                      <a className="nl-hashlink" href={`${EXPLORER_OBJ}${n.note_id}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{shortId(n.note_id)}</a>
                     </td>
                     <td className="nl-td">{new Date(Number(n.expiry_ts_ms)).toISOString().slice(0, 16).replace('T', ' ')}</td>
                     <td className="nl-td">
