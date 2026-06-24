@@ -186,5 +186,8 @@
 .nl-cap { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em;
   text-transform: uppercase; color: var(--ink-faint); margin: 0 0 8px; }
 .nl-preview-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+.nl-resume { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--chart-grid);
+  border-radius: 10px; background: rgba(0, 0, 0, .02); }
+.nl-resume .nl-note { margin-top: 0; }
 .nl-note { font-size: 13px; color: var(--pearl-dim); margin-top: 12px; display: flex; gap: 10px; align-items: center; }
 .nl-note code { font-family: var(--font-mono); }

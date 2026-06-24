@@ -15,7 +15,7 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
   const padL = full ? 50 : 20, padR = full ? 20 : 14, padT = full ? 30 : 14, padB = full ? 22 : 14;
   const x0 = padL, x1 = W - padR, y0 = H - padB, y1 = padT;
 
-  const { points, strikes, maxPayout, legs } = curve;
+  const { points, strikes, maxPayout, legs, baseline = 0, qtyPerLeg } = curve;
   // Price domain: pad one step on each side of the band so the flat ends are visible.
   const lo = strikes[0], hi = strikes[strikes.length - 1];
   const stepW = strikes.length > 1 ? (hi - lo) / (strikes.length - 1) : (hi || 1) * 0.05;
@@ -23,10 +23,12 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
   const px = (p) => x0 + ((p - pMin) / (pMax - pMin)) * (x1 - x0);
   const py = (v) => y0 - (maxPayout ? (v / maxPayout) * (y0 - y1) : 0);
 
-  // Build the polyline: flat from pMin@0 → first point, the staircase, then flat to pMax@max.
+  // Build the polyline: flat from pMin@baseline → first point, the staircase, then flat to pMax@max.
+  // baseline (= leftover) lifts both flat ends off 0 — the floor a holder reclaims even all-OTM.
   const stair = points.map((pt) => `${px(pt.price).toFixed(1)},${py(pt.payout).toFixed(1)}`);
-  const line = [`${px(pMin).toFixed(1)},${py(0).toFixed(1)}`, ...stair, `${px(pMax).toFixed(1)},${py(maxPayout).toFixed(1)}`];
-  const area = [...line, `${px(pMax).toFixed(1)},${py(0).toFixed(1)}`];
+  const line = [`${px(pMin).toFixed(1)},${py(baseline).toFixed(1)}`, ...stair, `${px(pMax).toFixed(1)},${py(maxPayout).toFixed(1)}`];
+  // Fill spans from the step line down to 0, so close the polygon at py(0) on both ends.
+  const area = [`${px(pMin).toFixed(1)},${py(0).toFixed(1)}`, ...line, `${px(pMax).toFixed(1)},${py(0).toFixed(1)}`];
 
   const showDots = legs <= 24;
   // Markers can fall outside the band domain (e.g. forward below the accrual zone at mint).
@@ -74,7 +76,7 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
 
       {/* strike dots (hidden when crowded) */}
       {showDots && strikes.map((s, k) => (
-        <circle key={k} cx={px(s)} cy={py((maxPayout / legs) * (k + 1))} r={full ? 2.6 : 2} fill="var(--molten-end)" />
+        <circle key={k} cx={px(s)} cy={py(baseline + qtyPerLeg * (k + 1))} r={full ? 2.6 : 2} fill="var(--molten-end)" />
       ))}
 
       {/* forward marker */}
@@ -103,10 +105,10 @@ export default function PayoffChart({ curve, forward, settlementPrice = null, si
   );
 }
 
-// payout at an arbitrary settlement price (count strikes strictly below it × per-leg).
+// payout at an arbitrary settlement price = baseline (leftover) + per-leg × strikes strictly below.
 function payoutAt(curve, price) {
   const below = curve.strikes.filter((s) => s < price).length;
-  return (curve.maxPayout / curve.legs) * below;
+  return (curve.baseline ?? 0) + curve.qtyPerLeg * below;
 }
 // compact formatting for oracle ticks (e9) → human price, and base-unit payout → dUSDC.
 function fmtK(tick, decimals = 0) { return `${(tick / 1e12).toFixed(decimals)}k`; }

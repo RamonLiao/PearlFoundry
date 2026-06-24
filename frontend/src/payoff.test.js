@@ -44,6 +44,46 @@ test('accepts string and number inputs', () => {
   assert.equal(c.legs, 7);
 });
 
+// leftover shift — the real on-chain payoff is `leftover + qty×(#strikes below settlement)`.
+// The unspent net principal sits in the manager's BalanceManager and is reclaimed at claim, so
+// the whole staircase is lifted by `leftover` (floor = leftover, cap = leftover + qty×legs).
+test('leftover defaults to 0 → baseline 0, payouts unshifted (back-compat)', () => {
+  const c = computePayoffCurve(base);
+  assert.equal(c.baseline, 0);
+  assert.equal(c.points[0].payout, 0);
+  assert.equal(c.maxPayout, 7 * 2_000_000);
+});
+
+test('leftover lifts baseline, every point, and maxPayout by exactly leftover', () => {
+  const L = 1_030_000n;
+  const c = computePayoffCurve({ ...base, leftover: L });
+  assert.equal(c.baseline, 1_030_000);
+  // floor (just below first strike) = leftover, not 0
+  assert.equal(c.points[0].payout, 1_030_000);
+  // cap = leftover + qty×legs
+  assert.equal(c.maxPayout, 1_030_000 + 7 * 2_000_000);
+  assert.equal(c.points[c.points.length - 1].payout, c.maxPayout);
+});
+
+test('leftover preserves riser height (each step still == qtyPerLeg)', () => {
+  const c = computePayoffCurve({ ...base, leftover: 1_030_000n });
+  for (let i = 0; i + 1 < c.points.length; i += 2) {
+    assert.equal(c.points[i + 1].payout - c.points[i].payout, 2_000_000);
+  }
+});
+
+test('leftover accepts string/number and stays monotonic', () => {
+  const c = computePayoffCurve({ ...base, leftover: '500000' });
+  assert.equal(c.baseline, 500_000);
+  for (let i = 1; i < c.points.length; i++) {
+    assert.ok(c.points[i].payout >= c.points[i - 1].payout, `drop at ${i}`);
+  }
+});
+
+test('throws on negative leftover (fail loud — leftover is always ≥ 0 on-chain)', () => {
+  assert.throws(() => computePayoffCurve({ ...base, leftover: -1n }), /leftover/i);
+});
+
 // Monkey / fail-loud guards
 test('throws on step <= 0', () => {
   assert.throws(() => computePayoffCurve({ ...base, step: 0n }), /step/);

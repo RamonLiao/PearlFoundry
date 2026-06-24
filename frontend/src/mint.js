@@ -2,11 +2,26 @@ import { Transaction } from '@mysten/sui/transactions';
 import { postTx } from './api.js';
 
 /**
- * Phase 1: create the PredictManager (PTB1) and fetch the mint quote (unsigned PTB2).
- * @param {{ signExec: Function, sender: string, client?: { waitForTransaction?: Function } }} args
- *   client (optional) — dapp-kit's current SuiClient, used to confirm PTB1 before quoting.
+ * Fetch a fresh mint quote (unsigned PTB2) for an existing manager. Split out so resume-after-
+ * refresh can re-quote without re-creating a manager. The quote's ladder is forward-relative and
+ * goes stale (~15 min as the forward rolls), so we always re-`/quote` instead of caching the tx.
+ * @param {{ sender: string, mgr: string }} args
  */
-export async function prepareMint({ signExec, sender, client }) {
+export async function quoteMint({ sender, mgr }) {
+  const { tx, ladder, forward, qtyPerLeg, expiry } = await postTx('/quote', { sender, mgr });
+  return { mgr, tx, ladder, forward, qtyPerLeg, expiry };
+}
+
+/**
+ * Phase 1: create the PredictManager (PTB1) and fetch the mint quote (unsigned PTB2).
+ * @param {{ signExec: Function, sender: string, client?: { waitForTransaction?: Function },
+ *           onManager?: (mgr: string) => void }} args
+ *   client (optional) — dapp-kit's current SuiClient, used to confirm PTB1 before quoting.
+ *   onManager (optional) — called the instant PTB1's manager id is known, BEFORE the wait/quote,
+ *     so the caller can persist it and recover from a refresh that lands mid-quote (the empty
+ *     manager would otherwise be orphaned — no funds lost, notional is only spent in PTB2).
+ */
+export async function prepareMint({ signExec, sender, client, onManager }) {
   const { tx: cmTxJson } = await postTx('/create-manager-tx', { sender });
   const r1 = await signExec(Transaction.from(cmTxJson));
   if (r1.$kind === 'FailedTransaction') {
@@ -20,6 +35,9 @@ export async function prepareMint({ signExec, sender, client }) {
       `changedObjects=${JSON.stringify(changed)}`);
   }
   const mgr = mgrObj.objectId;
+  // Persist hook FIRST — the manager now exists on-chain; a refresh before PTB2 must be able to
+  // resume it instead of orphaning it. Guarded: a throwing callback must not abort the mint.
+  try { onManager?.(mgr); } catch (e) { console.warn('[mint] onManager hook threw (ignored):', e?.message); }
 
   // Harden the PTB1→PTB2 gap. PTB1 just spent the wallet's (often only) SUI gas coin and shared
   // the new manager; if PTB2's gas estimation runs before the fullnode indexes PTB1, the wallet
@@ -37,8 +55,7 @@ export async function prepareMint({ signExec, sender, client }) {
     }
   }
 
-  const { tx, ladder, forward, qtyPerLeg, expiry } = await postTx('/quote', { sender, mgr });
-  return { mgr, tx, ladder, forward, qtyPerLeg, expiry };
+  return quoteMint({ sender, mgr });
 }
 
 /** Phase 2: sign the mint (PTB2) after the user confirms the payoff preview. */
