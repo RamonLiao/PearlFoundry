@@ -97,6 +97,26 @@
 .nl-btn--primary:active:not(:disabled) { transform: translateY(-1px) scale(1.02); }
 .nl-btn--primary:disabled { opacity: 0.55; }
 
+/* table-scoped primary: damp the hero CTA so it fits a 52px action cell (review M1) */
+.nl-td .nl-btn--primary { padding: 8px 16px; font-size: 12px; }
+.nl-td .nl-btn--primary:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 10px 18px -10px rgba(224,160,60,.75);
+}
+
+/* expanded-row close — pearl chip with the app's line-icon X (review ②) */
+.nl-detail { position: relative; }
+.nl-detail-close {
+  position: absolute; top: 8px; right: 10px;
+  width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface-sunk); border: 1px solid var(--hairline); border-radius: 999px;
+  color: var(--pearl-dim); cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.nl-detail-close:hover { color: var(--pearl); border-color: rgba(58,51,64,.22); }
+.nl-detail-close:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
+.nl-detail-close .nl-li { width: 12px; height: 12px; }
+
 /* connected-address pill (light) */
 .nl-pill {
   display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono);
@@ -197,6 +217,7 @@
   .nl-caustic, .nl-bubble { animation: none; }
   .nl-bubble { opacity: 0; }
   .nl-draw, .nl-fillgate, .nl-dotgate { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
+  .nl-detail-close { transition: none; }
 }
 
 /* ── Payoff preview panel ─────────────────────────────────────────────────── */

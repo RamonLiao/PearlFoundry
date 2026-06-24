@@ -160,7 +160,7 @@ export default function MyNotes({ account, signExec }) {
                       {state === 'claimable'
                         ? (
                           <button
-                            className="nl-btn"
+                            className="nl-btn nl-btn--primary"
                             disabled={isClaiming || !!claiming}
                             onClick={(e) => { e.stopPropagation(); claim(n); }}
                             aria-busy={isClaiming}
@@ -179,6 +179,16 @@ export default function MyNotes({ account, signExec }) {
                   {expanded === n.note_id && (
                     <tr className="nl-detailrow">
                       <td colSpan={4} className="nl-detail">
+                        <button
+                          type="button"
+                          className="nl-detail-close"
+                          aria-label="Close payoff"
+                          onClick={(e) => { e.stopPropagation(); setExpanded(null); }}
+                        >
+                          <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M6 6l12 12M18 6L6 18" />
+                          </svg>
+                        </button>
                         {paramsCache[n.note_id]?.error
                           ? <p className="nl-error">{paramsCache[n.note_id].error}</p>
                           : paramsCache[n.note_id]?.curve
