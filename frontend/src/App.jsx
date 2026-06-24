@@ -9,6 +9,7 @@ import PayoffChart from './PayoffChart.jsx';
 import MetricRail from './MetricRail.jsx';
 import { DEMO_CURVE, DEMO_FORWARD } from './demoCurve.js';
 import { EXPLORER } from './config.js';
+import { shortId } from './format.js';
 import MyNotes from './MyNotes.jsx';
 import Leaderboard from './Leaderboard.jsx';
 import Sea from './Sea.jsx';
@@ -177,7 +178,9 @@ export default function App() {
                     <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 3.5c.4 3.8 1.7 5.1 5.5 5.5-3.8.4-5.1 1.7-5.5 5.5-.4-3.8-1.7-5.1-5.5-5.5 3.8-.4 5.1-1.7 5.5-5.5Z" />
                     </svg>
-                    {mintPhase === 'preparing' ? 'Preparing…' : 'Mint Range Note'}
+                    {mintPhase === 'preparing'
+                      ? (<><span className="nl-spinner" aria-hidden="true"><i /><i /><i /></span>Preparing…</>)
+                      : 'Mint Range Note'}
                   </button>
                 </div>
               ) : (
@@ -190,7 +193,7 @@ export default function App() {
         {/* resume / status / error feedback — unchanged logic, now inside the hero section */}
         {account && pending && mintPhase !== 'confirm' && mintPhase !== 'preparing' && mintPhase !== 'minting' && (
           <div className="nl-resume">
-            <p className="nl-note">A manager from an earlier session is waiting (<code>{pending.mgr.slice(0, 12)}…</code>) — its mint never finished. Resume to re-quote and complete it, or discard to ignore it.</p>
+            <p className="nl-note">A manager from an earlier session is waiting (<code>{shortId(pending.mgr)}</code>) — its mint never finished. Resume to re-quote and complete it, or discard to ignore it.</p>
             <div className="nl-preview-actions">
               <button className="nl-btn" onClick={onDiscardPending}>Discard</button>
               <button className="nl-btn nl-btn--primary" onClick={onResume}>Resume mint</button>
@@ -198,11 +201,13 @@ export default function App() {
           </div>
         )}
         {mintPhase === 'cancelled' && (
-          <p className="nl-note">Manager kept on-chain (<code>{preview?.mgr?.slice(0, 12)}…</code>) — re-confirm anytime.
+          <p className="nl-note">Manager kept on-chain (<code>{shortId(preview?.mgr)}</code>) — re-confirm anytime.
             <button className="nl-btn" disabled={mintPhase === 'minting'} onClick={onConfirmMint}>Confirm Mint</button></p>
         )}
         {mintPhase === 'error' && <p className="nl-error">{mintErr}</p>}
-        {mintPhase === 'minting' && <p className="nl-note">Minting…</p>}
+        {mintPhase === 'minting' && (
+          <p className="nl-note"><span className="nl-spinner" aria-hidden="true"><i /><i /><i /></span>Minting…</p>
+        )}
         {status && (
           <pre className={`nl-status ${statusKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>
             {statusKind === 'ok' && (

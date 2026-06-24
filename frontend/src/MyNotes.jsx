@@ -5,6 +5,7 @@ import { getNotes, getOracle, getNoteParams, postTx } from './api.js';
 import { computePayoffCurve } from './payoff.js';
 import PayoffChart from './PayoffChart.jsx';
 import { EXPLORER, EXPLORER_OBJ } from './config.js';
+import { shortId } from './format.js';
 
 const DUSDC = 1_000_000; // 6 decimals
 // Oracle is keyed by the UNDERLYING price asset (registry::OracleCreated.underlying_asset),
@@ -28,6 +29,7 @@ import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNo
  */
 export default function MyNotes({ account, signExec }) {
   const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [msgKind, setMsgKind] = useState(/** @type {''|'ok'|'err'} */ (''));
   const [claimUrl, setClaimUrl] = useState('');
@@ -56,12 +58,15 @@ export default function MyNotes({ account, signExec }) {
   async function load() {
     setMsg('');
     setMsgKind('');
+    setLoading(true);
     try {
       // Normalize: indexer stores the full padded on-chain address; wallet form may be unpadded.
       setNotes(await getNotes(normalizeSuiAddress(account.address)));
     } catch (e) {
       setMsg(`Failed to load notes: ${e.message}`);
       setMsgKind('err');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -127,7 +132,30 @@ export default function MyNotes({ account, signExec }) {
         <button className="nl-refresh" onClick={load} disabled={!!claiming}>Refresh</button>
       </header>
 
-      {notes.length === 0 && <p className="nl-empty">No notes found.</p>}
+      {loading && notes.length === 0 && !msg && (
+        <table className="nl-table" aria-hidden="true">
+          <thead>
+            <tr>
+              <th className="nl-th">Note</th>
+              <th className="nl-th">Expiry</th>
+              <th className="nl-th">Status</th>
+              <th className="nl-th nl-th--num">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[0, 1, 2].map((i) => (
+              <tr className="nl-row" key={i} style={{ animation: 'none', opacity: 1 }}>
+                <td className="nl-td"><span className="nl-skel" style={{ width: '60%' }} /></td>
+                <td className="nl-td"><span className="nl-skel" style={{ width: '40%' }} /></td>
+                <td className="nl-td"><span className="nl-skel" style={{ width: '30%' }} /></td>
+                <td className="nl-td nl-td--num"><span className="nl-skel" style={{ width: '50%', marginLeft: 'auto' }} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {loading && <span className="sr-only" role="status">Loading notes…</span>}
+      {!loading && !msg && notes.length === 0 && <p className="nl-empty">No notes found.</p>}
 
       {notes.length > 0 && (
         <table className="nl-table">
@@ -148,7 +176,7 @@ export default function MyNotes({ account, signExec }) {
                 <Fragment key={n.note_id}>
                   <tr className={`nl-row nl-row--expandable`} style={{ '--i': i }} onClick={() => toggleExpand(n)}>
                     <td className="nl-td" title={n.note_id}>
-                      <a className="nl-hashlink" href={`${EXPLORER_OBJ}${n.note_id}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{n.note_id.slice(0, 12)}…</a>
+                      <a className="nl-hashlink" href={`${EXPLORER_OBJ}${n.note_id}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{shortId(n.note_id)}</a>
                     </td>
                     <td className="nl-td">{new Date(Number(n.expiry_ts_ms)).toISOString().slice(0, 16).replace('T', ' ')}</td>
                     <td className="nl-td">
@@ -159,7 +187,7 @@ export default function MyNotes({ account, signExec }) {
                       {state === 'claimable'
                         ? (
                           <button
-                            className="nl-btn"
+                            className="nl-btn nl-btn--primary"
                             disabled={isClaiming || !!claiming}
                             onClick={(e) => { e.stopPropagation(); claim(n); }}
                             aria-busy={isClaiming}
@@ -178,6 +206,16 @@ export default function MyNotes({ account, signExec }) {
                   {expanded === n.note_id && (
                     <tr className="nl-detailrow">
                       <td colSpan={4} className="nl-detail">
+                        <button
+                          type="button"
+                          className="nl-detail-close"
+                          aria-label="Close payoff"
+                          onClick={(e) => { e.stopPropagation(); setExpanded(null); }}
+                        >
+                          <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M6 6l12 12M18 6L6 18" />
+                          </svg>
+                        </button>
                         {paramsCache[n.note_id]?.error
                           ? <p className="nl-error">{paramsCache[n.note_id].error}</p>
                           : paramsCache[n.note_id]?.curve

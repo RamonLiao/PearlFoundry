@@ -97,6 +97,26 @@
 .nl-btn--primary:active:not(:disabled) { transform: translateY(-1px) scale(1.02); }
 .nl-btn--primary:disabled { opacity: 0.55; }
 
+/* table-scoped primary: damp the hero CTA so it fits a 52px action cell (review M1) */
+.nl-td .nl-btn--primary { padding: 8px 16px; font-size: 12px; }
+.nl-td .nl-btn--primary:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 10px 18px -10px rgba(224,160,60,.75);
+}
+
+/* expanded-row close — pearl chip with the app's line-icon X (review ②) */
+.nl-detail { position: relative; }
+.nl-detail-close {
+  position: absolute; top: 8px; right: 10px;
+  width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface-sunk); border: 1px solid var(--hairline); border-radius: 999px;
+  color: var(--pearl-dim); cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.nl-detail-close:hover { color: var(--pearl); border-color: rgba(58,51,64,.22); }
+.nl-detail-close:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
+.nl-detail-close .nl-li { width: 12px; height: 12px; }
+
 /* connected-address pill (light) */
 .nl-pill {
   display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono);
@@ -197,6 +217,8 @@
   .nl-caustic, .nl-bubble { animation: none; }
   .nl-bubble { opacity: 0; }
   .nl-draw, .nl-fillgate, .nl-dotgate { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
+  .nl-detail-close { transition: none; }
+  .nl-spinner i { animation: none; opacity: .6; }
 }
 
 /* ── Payoff preview panel ─────────────────────────────────────────────────── */
@@ -252,3 +274,24 @@
 .nl-rail-value--num { font-family: var(--font-display); font-size: 21px; color: var(--pearl); line-height: 1.1; }
 .nl-rail-value--mono { font-family: var(--font-mono); font-size: 14px; color: var(--pearl); }
 .nl-rail-row--floor .nl-rail-value--num { color: var(--jade); }
+
+/* visually-hidden but screen-reader-announced (no such utility existed) */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* mint progress: 3 rising-pearl dots (NOT a rotating ring — review C1) */
+.nl-spinner { display: inline-flex; gap: 3px; align-items: center; margin-right: 7px; }
+.nl-spinner i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #fff 0%, rgba(255,255,255,.6) 22%, rgba(150,205,225,.28) 60%, rgba(120,180,215,.10) 82%);
+  animation: nl-pearl 1.2s ease-in-out infinite;
+}
+.nl-spinner i:nth-child(2) { animation-delay: .15s; }
+.nl-spinner i:nth-child(3) { animation-delay: .30s; }
+@keyframes nl-pearl { 0%, 100% { transform: translateY(0); opacity: .45; } 50% { transform: translateY(-4px); opacity: 1; } }
+/* on the molten button the pearl gradient is invisible on gold — use the button's text color */
+.nl-btn--primary .nl-spinner i { background: #3d1a28; }
+/* pin width so swapping "Mint Range Note"→"Preparing…" + dots doesn't reflow .nl-issue-row */
+.nl-issue-row .nl-btn--primary { min-width: 196px; justify-content: center; }
