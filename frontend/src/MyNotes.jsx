@@ -19,14 +19,15 @@ const UNDERLYING = 'BTC';
 
 // Honest plain-English for the sponsored error codes; raw code is appended by the caller in [brackets].
 function claimErrorCopy(e) {
-  switch (e.code) {
+  // Wallet/provider rejections may be non-Error (string, null, custom payload) — never deref blindly.
+  switch (e?.code) {
     case 'NOTE_NOT_OWNED':
     case 'MGR_NOT_OWNED': return "This note isn't yours to claim.";
     case 'CLAIM_DRYRUN_FAILED': return "This note isn't settled yet (or was already claimed).";
     case 'NO_SPONSOR':
     case 'NO_SPONSOR_GAS': return 'Gas sponsor unavailable and self-pay failed — try again shortly.';
     case 'BYTE_MISMATCH': return "Your wallet changed the sponsored transaction — claim again to pay gas yourself.";
-    default: return e.message;
+    default: return e?.message ?? String(e);
   }
 }
 
@@ -139,7 +140,7 @@ export default function MyNotes({ account, signExec, dAppKit, client, sponsorAva
       setMsgKind('ok');
       setNotes((prev) => prev.filter((x) => x.note_id !== n.note_id));
     } catch (e) {
-      setMsg(`CLAIM FAILED: ${claimErrorCopy(e)}${e.code ? ` [${e.code}]` : ''}`);
+      setMsg(`CLAIM FAILED: ${claimErrorCopy(e)}${e?.code ? ` [${e.code}]` : ''}`);
       setMsgKind('err');
     } finally {
       setClaiming(null); setClaimPhase(null);
