@@ -12,6 +12,7 @@ import { EXPLORER, API } from './config.js';
 import { shortId } from './format.js';
 import MyNotes from './MyNotes.jsx';
 import Leaderboard from './Leaderboard.jsx';
+import Mascot from './Mascot.jsx';
 import Sea from './Sea.jsx';
 import './App.css';
 
@@ -216,6 +217,12 @@ export default function App() {
         {mintPhase === 'error' && <p className="nl-error">{mintErr}</p>}
         {mintPhase === 'minting' && (
           <p className="nl-note"><span className="nl-spinner" aria-hidden="true"><i /><i /><i /></span>Minting…</p>
+        )}
+        {mintPhase === 'done' && statusKind === 'ok' && (
+          <div className="nl-mint-celebration" role="status" aria-live="polite">
+            <Mascot variant={1} treatment="full" size={88} glow />
+            <p className="nl-mint-celebration-cap">Minted — your note is live.</p>
+          </div>
         )}
         {status && (
           <pre className={`nl-status ${statusKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>

@@ -219,6 +219,7 @@
   .nl-draw, .nl-fillgate, .nl-dotgate { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
   .nl-detail-close { transition: none; }
   .nl-spinner i { animation: none; opacity: .6; }
+  .nl-mint-celebration .nl-pearl-well { animation: none; }
 }
 
 /* ── Payoff preview panel ─────────────────────────────────────────────────── */
@@ -360,4 +361,18 @@
 .nl-empty-p {
   font-size: 13px; color: var(--pearl-dim); max-width: 34ch;
   margin: 6px 0 0; line-height: 1.5;
+}
+
+/* mint-success celebration — the single high-saturation moment */
+.nl-mint-celebration {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 10px; margin: 18px 0 4px;
+}
+.nl-mint-celebration .nl-pearl-well { animation: nl-clam-open 560ms ease-out 1 both; }
+.nl-mint-celebration-cap {
+  font-family: var(--font-display); font-size: 16px; color: var(--pearl); margin: 0;
+}
+@keyframes nl-clam-open {
+  from { opacity: 0; transform: translateY(6px) scale(.94); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
 }
