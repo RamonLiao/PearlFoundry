@@ -13,6 +13,7 @@ import { shortId } from './format.js';
 import MyNotes from './MyNotes.jsx';
 import Leaderboard from './Leaderboard.jsx';
 import Mascot from './Mascot.jsx';
+import { mascotSrc } from './mascot.js';
 import Sea from './Sea.jsx';
 import './App.css';
 
@@ -29,6 +30,9 @@ export default function App() {
   const [mintErr, setMintErr] = useState(null);
   const [txUrl, setTxUrl] = useState('');
   const [pending, setPending] = useState(null); // orphaned-manager record from a prior refresh
+
+  const MASCOT_CYCLE = [3, 1, 2]; // serene → joyful → showy
+  const [mascotIdx, setMascotIdx] = useState(0);
 
   // Shared signExec: wraps dAppKit.signAndExecuteTransaction; accepts a Transaction object.
   const signExec = (tx) => dAppKit.signAndExecuteTransaction({ transaction: tx });
@@ -103,7 +107,12 @@ export default function App() {
     <div className="nl-app">
       <Sea />
       <header className="nl-masthead nl-section" style={{ '--i': 0 }}>
-        <img className="nl-mast-logo" src="/logo-mark.png" alt="" />
+        <button type="button" className="nl-mast-logo-btn" aria-label="PearlFoundry"
+          onClick={() => setMascotIdx((i) => (i + 1) % MASCOT_CYCLE.length)}>
+          <img className="nl-mast-logo"
+            src={mascotIdx === 0 ? '/logo-mark.png' : mascotSrc(MASCOT_CYCLE[mascotIdx])}
+            alt="" width="80" height="80" />
+        </button>
         <div className="nl-mast-titles">
           <span className="nl-eyebrow">
             <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
