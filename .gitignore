@@ -33,3 +33,7 @@ frontend/dist/
 
 # local payoff verification screenshots (working scratch)
 payoff-live*.png
+
+# Sui keypair exports (probe残留, secrets — never commit)
+*.key
+0x*.key
