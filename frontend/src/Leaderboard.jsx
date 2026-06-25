@@ -3,6 +3,7 @@ import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { getLeaderboard } from './api.js';
 import { shortId } from './format.js';
 import Mascot from './Mascot.jsx';
+import { MASCOT_VARIANT } from './mascot.js';
 import './Leaderboard.css';
 
 const DUSDC = 1_000_000; // 6 decimals
@@ -59,7 +60,7 @@ export default function Leaderboard({ account }) {
       {msg && <pre className="nl-error">{msg}</pre>}
       {rows.length === 0 && !msg && !loading && (
         <figure className="nl-empty nl-empty--illustrated">
-          <Mascot variant={3} treatment="duotone" size={72} />
+          <Mascot variant={MASCOT_VARIANT.SERENE} treatment="duotone" size={72} />
           <figcaption>
             <p className="nl-empty-h">Be the first on the Ledger</p>
             <p className="nl-empty-p">No settled notes yet — issuers appear here once their notes settle.</p>

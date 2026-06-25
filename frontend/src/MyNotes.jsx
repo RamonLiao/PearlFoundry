@@ -8,6 +8,7 @@ import { EXPLORER, EXPLORER_OBJ } from './config.js';
 import { shortId } from './format.js';
 import { sponsoredClaim } from './claimSponsored.js';
 import Mascot from './Mascot.jsx';
+import { MASCOT_VARIANT } from './mascot.js';
 import './Leaderboard.css';
 import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNotes styling resolves even if rendered standalone
 
@@ -190,7 +191,7 @@ export default function MyNotes({ account, signExec, dAppKit, client, sponsorAva
       {loading && <span className="sr-only" role="status">Loading notes…</span>}
       {!loading && !msg && notes.length === 0 && (
         <figure className="nl-empty nl-empty--illustrated">
-          <Mascot variant={3} treatment="duotone" size={72} />
+          <Mascot variant={MASCOT_VARIANT.SERENE} treatment="duotone" size={72} />
           <figcaption>
             <p className="nl-empty-h">No notes yet</p>
             <p className="nl-empty-p">Issue your first Range Note above to see it appear here.</p>

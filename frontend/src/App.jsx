@@ -13,11 +13,11 @@ import { shortId } from './format.js';
 import MyNotes from './MyNotes.jsx';
 import Leaderboard from './Leaderboard.jsx';
 import Mascot from './Mascot.jsx';
-import { mascotSrc } from './mascot.js';
+import { mascotSrc, MASCOT_VARIANT } from './mascot.js';
 import Sea from './Sea.jsx';
 import './App.css';
 
-const MASCOT_CYCLE = [3, 1, 2]; // serene → joyful → showy
+const MASCOT_CYCLE = [MASCOT_VARIANT.SERENE, MASCOT_VARIANT.JOYFUL, MASCOT_VARIANT.SHOWY];
 
 export default function App() {
   const account = useCurrentAccount();
@@ -230,7 +230,7 @@ export default function App() {
         )}
         {mintPhase === 'done' && statusKind === 'ok' && (
           <div className="nl-mint-celebration" role="status" aria-live="polite">
-            <Mascot variant={1} treatment="full" size={88} glow />
+            <Mascot variant={MASCOT_VARIANT.JOYFUL} treatment="full" size={88} glow />
             <p className="nl-mint-celebration-cap">Minted — your note is live.</p>
           </div>
         )}
