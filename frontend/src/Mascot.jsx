@@ -1,4 +1,5 @@
 import { mascotSrc, treatmentClass } from './mascot.js';
+import './Mascot.css';
 
 /**
  * Pearl-well-framed kawaii mascot. The well tones the raster toward the brand;

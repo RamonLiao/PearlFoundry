@@ -310,42 +310,9 @@
 /* pin width so 'Approve in wallet →' doesn't reflow the cell */
 .nl-claim-btn { min-width: 150px; }
 
-/* ── Mascot (kawaii pearl-shell accents) ─────────────────────────────────────
-   Single source of truth for the pearl-well frame + treatments. The well is QUIET
-   at rest (no molten halo); molten glow is reserved for the mint-success peak. */
-.nl-pearl-well {
-  --mascot-size: 72px;
-  position: relative; display: inline-grid; place-items: center;
-  width: calc(var(--mascot-size) + 32px); height: calc(var(--mascot-size) + 32px);
-  border-radius: 50%; overflow: hidden;
-  background: radial-gradient(circle at 38% 32%, #fff 0%, #f3ecf5 55%, #e7dcef 100%);
-  box-shadow: inset 0 1px 3px rgba(58,51,64,.10),
-              inset 0 -6px 14px rgba(160,140,180,.12),
-              0 1px 2px rgba(58,51,64,.06);
-}
-/* nacre tint overlay — stains duotone shells into the palette (above img in paint order) */
-.nl-pearl-well::after {
-  content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle at 50% 45%, rgba(216,206,242,0), rgba(216,206,242,.30) 70%, rgba(201,193,232,.42));
-  mix-blend-mode: color; opacity: 0; /* only duotone turns it on, see below */
-}
-.nl-pearl-well:has(.nl-mascot-img--duotone)::after { opacity: 1; }
-
-.nl-mascot-img {
-  width: var(--mascot-size); height: var(--mascot-size); object-fit: contain; display: block;
-  /* mask away the raster's baked-in bottom drop-shadow into the well floor */
-  -webkit-mask-image: linear-gradient(to bottom, #000 84%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 84%, transparent 100%);
-}
-.nl-mascot-img--duotone { filter: saturate(.5) contrast(.97) brightness(1.02) sepia(.14); }
-.nl-mascot-img--full    { filter: none; }
-
-/* molten glow — mint-success peak only */
-.nl-pearl-well--glow {
-  box-shadow: inset 0 1px 3px rgba(58,51,64,.10),
-              0 0 0 1px rgba(224,160,60,.35),
-              0 6px 22px rgba(224,160,60,.45);
-}
+/* Mascot component-owned styles (pearl-well frame + treatments + glow) live in
+   Mascot.css, imported by Mascot.jsx. The consumer-side placement rules below
+   (empty state, mint celebration, masthead button) stay here. */
 
 /* illustrated empty state — text-led with a mascot grace note */
 .nl-empty--illustrated {
