@@ -19,7 +19,7 @@
   background: radial-gradient(circle at 50% 45%, rgba(216,206,242,0), rgba(216,206,242,.30) 70%, rgba(201,193,232,.42));
   mix-blend-mode: color; opacity: 0; /* only duotone turns it on, see below */
 }
-.nl-pearl-well:has(.nl-mascot-img--duotone)::after { opacity: 1; }
+.nl-pearl-well--duotone::after { opacity: 1; }
 
 .nl-mascot-img {
   width: var(--mascot-size); height: var(--mascot-size); object-fit: contain; display: block;

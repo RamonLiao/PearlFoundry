@@ -111,7 +111,7 @@ export default function App() {
         <button type="button" className="nl-mast-logo-btn" aria-label="PearlFoundry"
           onClick={() => setMascotIdx((i) => (i + 1) % MASCOT_CYCLE.length)}>
           <img className="nl-mast-logo"
-            src={mascotIdx === 0 ? '/logo-mark.png' : mascotSrc(MASCOT_CYCLE[mascotIdx])}
+            src={mascotSrc(MASCOT_CYCLE[mascotIdx])}
             alt="" width="80" height="80" />
         </button>
         <div className="nl-mast-titles">

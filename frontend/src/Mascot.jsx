@@ -8,7 +8,7 @@ import './Mascot.css';
  */
 export default function Mascot({ variant, treatment, size = 72, glow = false, alt = '' }) {
   return (
-    <span className={`nl-pearl-well${glow ? ' nl-pearl-well--glow' : ''}`}
+    <span className={`nl-pearl-well nl-pearl-well--${treatment}${glow ? ' nl-pearl-well--glow' : ''}`}
       style={{ '--mascot-size': `${size}px` }}>
       <img
         className={`nl-mascot-img ${treatmentClass(treatment)}`}
