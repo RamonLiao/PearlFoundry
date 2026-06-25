@@ -8,7 +8,7 @@ import { computePayoffCurve } from './payoff.js';
 import PayoffChart from './PayoffChart.jsx';
 import MetricRail from './MetricRail.jsx';
 import { DEMO_CURVE, DEMO_FORWARD } from './demoCurve.js';
-import { EXPLORER } from './config.js';
+import { EXPLORER, API } from './config.js';
 import { shortId } from './format.js';
 import MyNotes from './MyNotes.jsx';
 import Leaderboard from './Leaderboard.jsx';
@@ -31,6 +31,15 @@ export default function App() {
 
   // Shared signExec: wraps dAppKit.signAndExecuteTransaction; accepts a Transaction object.
   const signExec = (tx) => dAppKit.signAndExecuteTransaction({ transaction: tx });
+
+  const [sponsorAvailable, setSponsorAvailable] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    fetch(`${API}/sponsor-status`).then((r) => r.json())
+      .then((s) => { if (alive) setSponsorAvailable(!!s.available); })
+      .catch(() => { if (alive) setSponsorAvailable(false); });
+    return () => { alive = false; };
+  }, []);
 
   // On connect / account switch, surface any manager left pending by a refresh between PTB1 and PTB2.
   useEffect(() => {
@@ -220,7 +229,7 @@ export default function App() {
 
       {account && (
         <div className="nl-section" style={{ '--i': 3 }}>
-          <MyNotes account={account} signExec={signExec} />
+          <MyNotes account={account} signExec={signExec} dAppKit={dAppKit} client={client} sponsorAvailable={sponsorAvailable} />
         </div>
       )}
     </div>

@@ -6,6 +6,9 @@ import { computePayoffCurve } from './payoff.js';
 import PayoffChart from './PayoffChart.jsx';
 import { EXPLORER, EXPLORER_OBJ } from './config.js';
 import { shortId } from './format.js';
+import { sponsoredClaim } from './claimSponsored.js';
+import './Leaderboard.css';
+import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNotes styling resolves even if rendered standalone
 
 const DUSDC = 1_000_000; // 6 decimals
 // Oracle is keyed by the UNDERLYING price asset (registry::OracleCreated.underlying_asset),
@@ -13,8 +16,20 @@ const DUSDC = 1_000_000; // 6 decimals
 // the oracle asset fails resolveOracle ("no oracle for asset=range_accrual"). Underlying is BTC
 // for every note in this hackathon build.
 const UNDERLYING = 'BTC';
-import './Leaderboard.css';
-import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNotes styling resolves even if rendered standalone
+
+// Honest plain-English for the sponsored error codes; raw code is appended by the caller in [brackets].
+function claimErrorCopy(e) {
+  // Wallet/provider rejections may be non-Error (string, null, custom payload) — never deref blindly.
+  switch (e?.code) {
+    case 'NOTE_NOT_OWNED':
+    case 'MGR_NOT_OWNED': return "This note isn't yours to claim.";
+    case 'CLAIM_DRYRUN_FAILED': return "This note isn't settled yet (or was already claimed).";
+    case 'NO_SPONSOR':
+    case 'NO_SPONSOR_GAS': return 'Gas sponsor unavailable and self-pay failed — try again shortly.';
+    case 'BYTE_MISMATCH': return "Your wallet changed the sponsored transaction — claim again to pay gas yourself.";
+    default: return e?.message ?? String(e);
+  }
+}
 
 /**
  * MyNotes — lists the connected address's notes and allows claiming expired ones.
@@ -25,15 +40,17 @@ import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNo
  * oracle_id is NOT stored in the notes table. It is resolved at claim time via
  * GET /oracle?asset=<strategy>&expiry=<expiry_ts_ms> (added to server.js).
  *
- * @param {{ account: { address: string }, signExec: (tx: Transaction) => Promise<any> }} props
+ * @param {{ account: { address: string }, signExec: (tx: Transaction) => Promise<any>, dAppKit: object, client: object, sponsorAvailable: boolean }} props
  */
-export default function MyNotes({ account, signExec }) {
+export default function MyNotes({ account, signExec, dAppKit, client, sponsorAvailable }) {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [msgKind, setMsgKind] = useState(/** @type {''|'ok'|'err'} */ (''));
   const [claimUrl, setClaimUrl] = useState('');
   const [claiming, setClaiming] = useState(/** @type {string|null} */ (null));
+  const [claimPhase, setClaimPhase] = useState(/** @type {null|'sponsoring'|'awaiting-sign'|'submitting'} */ (null));
+  const [forceSelfPay, setForceSelfPay] = useState(false); // set when a wallet is detected mutating gas
   const [expanded, setExpanded] = useState(null);     // note_id currently open
   const [paramsCache, setParamsCache] = useState({}); // note_id -> { curve, forward, settlementPrice } | { error }
 
@@ -72,46 +89,61 @@ export default function MyNotes({ account, signExec }) {
 
   useEffect(() => { load(); }, [account.address]);
 
+  // Existing self-pay path, unchanged: holder signs + pays gas. Returns { digest } or throws.
+  async function selfPayClaim(n) {
+    const oracle = await getOracle(UNDERLYING, n.expiry_ts_ms);
+    const { tx: txJson } = await postTx('/claim-tx', { sender: account.address, note: n.note_id, mgr: n.manager_id, oracle });
+    const r = await signExec(Transaction.from(txJson));
+    if (r.$kind === 'FailedTransaction') {
+      const err = r.FailedTransaction?.effects?.status?.error;
+      throw new Error(`Claim failed on-chain: ${err?.message ?? JSON.stringify(err)}`);
+    }
+    const digest = r.Transaction?.digest;
+    if (!digest) throw new Error('Claim returned no digest — status unknown, treat as NOT completed');
+    return { digest };
+  }
+
   async function claim(n) {
     if (claiming) return;
-    setClaiming(n.note_id);
-    setMsg('');
-    setMsgKind('');
-    setClaimUrl('');
+    setClaiming(n.note_id); setMsg(''); setMsgKind(''); setClaimUrl('');
+    let usedSponsor = false;
     try {
-      // oracle_id not stored in indexer; resolve from (underlying asset, expiry) at claim time.
-      const oracle = await getOracle(UNDERLYING, n.expiry_ts_ms);
-
-      const { tx: txJson } = await postTx('/claim-tx', {
-        sender: account.address,
-        note: n.note_id,
-        mgr: n.manager_id,
-        oracle,
-      });
-
-      const r = await signExec(Transaction.from(txJson));
-
-      if (r.$kind === 'FailedTransaction') {
-        const err = r.FailedTransaction?.effects?.status?.error;
-        throw new Error(`Claim failed on-chain: ${err?.message ?? JSON.stringify(err)}`);
+      let digest;
+      const trySponsor = sponsorAvailable && !forceSelfPay && dAppKit && client;
+      if (trySponsor) {
+        try {
+          const oracle = await getOracle(UNDERLYING, n.expiry_ts_ms);
+          ({ digest } = await sponsoredClaim({
+            dAppKit, client, sender: account.address, note: n.note_id, mgr: n.manager_id, oracle,
+            onPhase: setClaimPhase,
+          }));
+          usedSponsor = true;
+        } catch (e) {
+          // Pre-popup failures (not 403) → silently fall back to self-pay (one popup total).
+          // 403 owner errors → self-pay would abort too: surface, no fallback.
+          // Post-popup failures (sign/verify/execute) → surface, do NOT auto re-sign.
+          if (e?.phase === 'request' && e?.status !== 403) {
+            if (e?.code === 'BYTE_MISMATCH') setForceSelfPay(true); // (defensive; verify-phase normally)
+            setClaimPhase('submitting');
+            ({ digest } = await selfPayClaim(n));
+          } else {
+            if (e?.code === 'BYTE_MISMATCH') setForceSelfPay(true);
+            throw e;
+          }
+        }
+      } else {
+        setClaimPhase('submitting');
+        ({ digest } = await selfPayClaim(n));
       }
-
-      const digest = r.Transaction?.digest;
-      if (!digest) throw new Error('Claim returned no digest — status unknown, treat as NOT completed');
-
-      setMsg('Claimed');
+      setMsg(usedSponsor ? 'Claimed (gas-free)' : 'Claimed');
       setClaimUrl(`${EXPLORER}${digest}`);
       setMsgKind('ok');
-      // Claim deletes the soulbound note on-chain (tx already final — signExec resolves
-      // post-execution). Optimistically drop it locally instead of re-querying: the off-chain
-      // indexer lags the chain, so an immediate load() reads stale /notes and resurrects the
-      // just-claimed row as claimable. Refresh / useEffect reconciles once the indexer catches up.
       setNotes((prev) => prev.filter((x) => x.note_id !== n.note_id));
     } catch (e) {
-      setMsg(`CLAIM FAILED: ${e.message}${e.code ? ` [${e.code}]` : ''}`);
+      setMsg(`CLAIM FAILED: ${claimErrorCopy(e)}${e?.code ? ` [${e.code}]` : ''}`);
       setMsgKind('err');
     } finally {
-      setClaiming(null);
+      setClaiming(null); setClaimPhase(null);
     }
   }
 
@@ -186,14 +218,34 @@ export default function MyNotes({ account, signExec }) {
                     <td className="nl-td nl-td--num">
                       {state === 'claimable'
                         ? (
-                          <button
-                            className="nl-btn nl-btn--primary"
-                            disabled={isClaiming || !!claiming}
-                            onClick={(e) => { e.stopPropagation(); claim(n); }}
-                            aria-busy={isClaiming}
-                          >
-                            {isClaiming ? 'Claiming…' : 'Claim'}
-                          </button>
+                          <>
+                            {sponsorAvailable && !forceSelfPay && (
+                              <span className="nl-gaschip">
+                                <svg className="nl-li" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                                  <circle cx="6" cy="7.5" r="2.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                                  <path d="M6 4.6 q1.2 -1.8 0 -3.4 q-1.2 1.6 0 3.4 Z" fill="currentColor" />
+                                </svg>
+                                gas-free
+                              </span>
+                            )}
+                            <button
+                              className="nl-btn nl-btn--primary nl-claim-btn"
+                              disabled={isClaiming || !!claiming}
+                              aria-busy={isClaiming}
+                              onClick={(e) => { e.stopPropagation(); claim(n); }}
+                            >
+                              {!isClaiming && 'Claim'}
+                              {isClaiming && claimPhase === 'sponsoring' && (<><span className="nl-spinner" aria-hidden="true"><i/><i/><i/></span>Sponsoring…</>)}
+                              {isClaiming && claimPhase === 'awaiting-sign' && 'Approve in wallet →'}
+                              {isClaiming && (claimPhase === 'submitting' || claimPhase === null) && (<><span className="nl-spinner" aria-hidden="true"><i/><i/><i/></span>Submitting…</>)}
+                            </button>
+                            <span className="sr-only" role="status" aria-live="polite">
+                              {claimPhase === 'sponsoring' && 'Requesting gas sponsor'}
+                              {claimPhase === 'awaiting-sign' && 'Approve the claim in your wallet'}
+                              {claimPhase === 'submitting' && 'Submitting your claim'}
+                              {!isClaiming && msgKind === 'ok' && msg}
+                            </span>
+                          </>
                         )
                         : state === 'settled' && n.payout != null
                           ? (() => {
