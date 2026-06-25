@@ -12,8 +12,12 @@ import { EXPLORER, API } from './config.js';
 import { shortId } from './format.js';
 import MyNotes from './MyNotes.jsx';
 import Leaderboard from './Leaderboard.jsx';
+import Mascot from './Mascot.jsx';
+import { mascotSrc, MASCOT_VARIANT } from './mascot.js';
 import Sea from './Sea.jsx';
 import './App.css';
+
+const MASCOT_CYCLE = [MASCOT_VARIANT.SERENE, MASCOT_VARIANT.JOYFUL, MASCOT_VARIANT.SHOWY];
 
 export default function App() {
   const account = useCurrentAccount();
@@ -28,6 +32,8 @@ export default function App() {
   const [mintErr, setMintErr] = useState(null);
   const [txUrl, setTxUrl] = useState('');
   const [pending, setPending] = useState(null); // orphaned-manager record from a prior refresh
+
+  const [mascotIdx, setMascotIdx] = useState(0);
 
   // Shared signExec: wraps dAppKit.signAndExecuteTransaction; accepts a Transaction object.
   const signExec = (tx) => dAppKit.signAndExecuteTransaction({ transaction: tx });
@@ -102,7 +108,12 @@ export default function App() {
     <div className="nl-app">
       <Sea />
       <header className="nl-masthead nl-section" style={{ '--i': 0 }}>
-        <img className="nl-mast-logo" src="/logo-mark.png" alt="" />
+        <button type="button" className="nl-mast-logo-btn" aria-label="PearlFoundry"
+          onClick={() => setMascotIdx((i) => (i + 1) % MASCOT_CYCLE.length)}>
+          <img className="nl-mast-logo"
+            src={mascotSrc(MASCOT_CYCLE[mascotIdx])}
+            alt="" width="80" height="80" />
+        </button>
         <div className="nl-mast-titles">
           <span className="nl-eyebrow">
             <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -216,6 +227,12 @@ export default function App() {
         {mintPhase === 'error' && <p className="nl-error">{mintErr}</p>}
         {mintPhase === 'minting' && (
           <p className="nl-note"><span className="nl-spinner" aria-hidden="true"><i /><i /><i /></span>Minting…</p>
+        )}
+        {mintPhase === 'done' && statusKind === 'ok' && (
+          <div className="nl-mint-celebration" role="status" aria-live="polite">
+            <Mascot variant={MASCOT_VARIANT.JOYFUL} treatment="full" size={88} glow />
+            <p className="nl-mint-celebration-cap">Minted — your note is live.</p>
+          </div>
         )}
         {status && (
           <pre className={`nl-status ${statusKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>

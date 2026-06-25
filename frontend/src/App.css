@@ -213,12 +213,14 @@
   .nl-statuspip--claimable { animation: none; }
   .nl-btn { transition: none; }
   .nl-mast-logo { animation: none; }
+  .nl-mast-logo-btn .nl-mast-logo { transition: none; }
   .nl-btn--primary { transition: none; }
   .nl-caustic, .nl-bubble { animation: none; }
   .nl-bubble { opacity: 0; }
   .nl-draw, .nl-fillgate, .nl-dotgate { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
   .nl-detail-close { transition: none; }
   .nl-spinner i { animation: none; opacity: .6; }
+  .nl-mint-celebration .nl-pearl-well { animation: none; }
 }
 
 /* ── Payoff preview panel ─────────────────────────────────────────────────── */
@@ -307,3 +309,55 @@
 .nl-gaschip .nl-li { color: var(--gold-ink); }
 /* pin width so 'Approve in wallet →' doesn't reflow the cell */
 .nl-claim-btn { min-width: 150px; }
+
+/* Mascot component-owned styles (pearl-well frame + treatments + glow) live in
+   Mascot.css, imported by Mascot.jsx. The consumer-side placement rules below
+   (empty state, mint celebration, masthead button) stay here. */
+
+/* illustrated empty state — text-led with a mascot grace note */
+.nl-empty--illustrated {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: clamp(40px, 8vh, 72px) 24px; margin: 0;
+}
+.nl-empty--illustrated .nl-pearl-well { margin-bottom: 20px; }
+.nl-empty--illustrated figcaption { display: contents; }
+.nl-empty-h {
+  font-family: var(--font-display); font-size: 18px; color: var(--pearl);
+  letter-spacing: -0.01em; margin: 0;
+}
+.nl-empty-p {
+  font-size: 13px; color: var(--pearl-dim); max-width: 34ch;
+  margin: 6px 0 0; line-height: 1.5;
+}
+
+/* mint-success celebration — the single high-saturation moment */
+.nl-mint-celebration {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 10px; margin: 18px 0 4px;
+}
+.nl-mint-celebration .nl-pearl-well { animation: nl-clam-open 560ms ease-out 1 both; }
+.nl-mint-celebration-cap {
+  font-family: var(--font-display); font-size: 16px; color: var(--pearl); margin: 0;
+}
+@keyframes nl-clam-open {
+  from { opacity: 0; transform: translateY(6px) scale(.94); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* masthead logo as a click-to-cycle easter-egg button (Treatment A reveal) */
+.nl-mast-logo-btn {
+  appearance: none; background: none; border: none; padding: 0; cursor: pointer;
+  border-radius: 50%; line-height: 0; flex: none;
+}
+.nl-mast-logo-btn .nl-mast-logo {
+  display: block;
+  filter: drop-shadow(0 12px 20px rgba(227,162,63,.45)) grayscale(1) opacity(.85);
+  transition: filter .45s ease;
+}
+.nl-mast-logo-btn:hover .nl-mast-logo,
+.nl-mast-logo-btn:focus-visible .nl-mast-logo {
+  filter: drop-shadow(0 12px 20px rgba(227,162,63,.45)) grayscale(0) opacity(1);
+}
+.nl-mast-logo-btn:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 4px; }
+/* freeze the bob while keyboard-focused so the focus ring doesn't bob */
+.nl-mast-logo-btn:focus-visible .nl-mast-logo { animation: none; }
