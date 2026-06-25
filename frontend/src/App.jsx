@@ -17,6 +17,8 @@ import { mascotSrc } from './mascot.js';
 import Sea from './Sea.jsx';
 import './App.css';
 
+const MASCOT_CYCLE = [3, 1, 2]; // serene → joyful → showy
+
 export default function App() {
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
@@ -31,7 +33,6 @@ export default function App() {
   const [txUrl, setTxUrl] = useState('');
   const [pending, setPending] = useState(null); // orphaned-manager record from a prior refresh
 
-  const MASCOT_CYCLE = [3, 1, 2]; // serene → joyful → showy
   const [mascotIdx, setMascotIdx] = useState(0);
 
   // Shared signExec: wraps dAppKit.signAndExecuteTransaction; accepts a Transaction object.

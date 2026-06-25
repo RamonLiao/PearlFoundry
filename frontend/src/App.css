@@ -338,7 +338,6 @@
   mask-image: linear-gradient(to bottom, #000 84%, transparent 100%);
 }
 .nl-mascot-img--duotone { filter: saturate(.5) contrast(.97) brightness(1.02) sepia(.14); }
-.nl-mascot-img--reveal  { filter: grayscale(1) opacity(.85); transition: filter .45s ease; }
 .nl-mascot-img--full    { filter: none; }
 
 /* molten glow — mint-success peak only */

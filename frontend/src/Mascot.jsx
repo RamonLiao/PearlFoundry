@@ -2,7 +2,7 @@ import { mascotSrc, treatmentClass } from './mascot.js';
 
 /**
  * Pearl-well-framed kawaii mascot. The well tones the raster toward the brand;
- * `treatment` selects the filter (duotone / reveal / full). Decorative by default
+ * `treatment` selects the filter (duotone / full). Decorative by default
  * (alt=''): meaning is carried by adjacent copy.
  */
 export default function Mascot({ variant, treatment, size = 72, glow = false, alt = '' }) {

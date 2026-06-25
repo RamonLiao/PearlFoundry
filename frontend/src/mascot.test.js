@@ -16,7 +16,6 @@ test('mascotSrc rejects out-of-range / non-integer variants (fail loud, not a 40
 
 test('treatmentClass maps each treatment to its modifier class', () => {
   assert.equal(treatmentClass('duotone'), 'nl-mascot-img--duotone');
-  assert.equal(treatmentClass('reveal'), 'nl-mascot-img--reveal');
   assert.equal(treatmentClass('full'), 'nl-mascot-img--full');
 });
 
