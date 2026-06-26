@@ -285,7 +285,11 @@ export default function MyNotes({ account, signExec, dAppKit, client, sponsorAva
                             ? <PayoffChart curve={paramsCache[n.note_id].curve}
                                 forward={paramsCache[n.note_id].forward}
                                 settlementPrice={paramsCache[n.note_id].settlementPrice} size="full" animated={false} />
-                            : <p className="nl-note">Loading payoff…</p>}
+                            : (
+                              <div className="nl-chartskel">
+                                <span className="sr-only" role="status">Loading payoff…</span>
+                              </div>
+                            )}
                       </td>
                     </tr>
                   )}
