@@ -3,6 +3,7 @@ import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { getLeaderboard } from './api.js';
 import { shortId } from './format.js';
 import Mascot from './Mascot.jsx';
+import ErrorState from './ErrorState.jsx';
 import { MASCOT_VARIANT } from './mascot.js';
 import './Leaderboard.css';
 
@@ -57,7 +58,7 @@ export default function Leaderboard({ account }) {
         </button>
       </header>
 
-      {msg && <pre className="nl-error">{msg}</pre>}
+      {msg && <ErrorState message={msg} />}
       {rows.length === 0 && !msg && !loading && (
         <figure className="nl-empty nl-empty--illustrated">
           <Mascot variant={MASCOT_VARIANT.SERENE} treatment="duotone" size={72} />
