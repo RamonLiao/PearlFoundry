@@ -300,12 +300,14 @@ export default function MyNotes({ account, signExec, dAppKit, client, sponsorAva
         </table>
       )}
 
-      {msg && (
-        <pre className={`nl-status ${msgKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>
-          {msgKind === 'ok' ? '✓ ' : ''}{msg}
-          {claimUrl && <>{'\n'}<a className="nl-txlink" href={claimUrl} target="_blank" rel="noreferrer">{claimUrl} ↗</a></>}
-        </pre>
-      )}
+      {msg && (msgKind === 'err'
+        ? <ErrorState message={msg} />
+        : (
+          <pre className="nl-status nl-status--ok">
+            ✓ {msg}
+            {claimUrl && <>{'\n'}<a className="nl-txlink" href={claimUrl} target="_blank" rel="noreferrer">{claimUrl} ↗</a></>}
+          </pre>
+        ))}
     </section>
   );
 }
