@@ -207,7 +207,13 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <button className="nl-btn nl-btn--primary" disabled title="Connect your wallet in the header to mint">Connect to mint</button>
+                <div className="nl-preconnect">
+                  <span className="nl-wave"><Mascot variant={MASCOT_VARIANT.JOYFUL} treatment="duotone" size={56} /></span>
+                  <div className="nl-preconnect-cta">
+                    <p className="nl-preconnect-h">Connect your wallet to begin</p>
+                    <button className="nl-btn nl-btn--primary nl-btn--hint" disabled title="Connect your wallet in the header to mint">Connect to mint</button>
+                  </div>
+                </div>
               )}
             </div>
           </div>

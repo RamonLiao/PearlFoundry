@@ -208,6 +208,19 @@
 /* static override: caller opted out (compact rows) */
 .nl-noanim { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
 
+/* ── Pre-connect greeter ─────────────────────────────────────────────────── */
+.nl-preconnect { display: flex; align-items: center; gap: 16px; }
+.nl-preconnect-cta { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+/* copy leads; the disabled button is a hint, not a co-equal CTA */
+.nl-preconnect-h { font-family: var(--font-display); font-weight: 600; font-size: 17px;
+  color: var(--pearl); margin: 0; }
+.nl-btn--hint:disabled { opacity: .6; }
+/* finite friendly wave (2 cycles, then rests) — wrapper is inline-block so the
+   transform is stable across line wraps */
+.nl-wave { display: inline-block; transform-origin: 70% 90%;
+  animation: nl-wave 1.1s ease-in-out 2; }
+@keyframes nl-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-7deg); } 60% { transform: rotate(5deg); } }
+
 /* ── ErrorState (cracked-shell error card) ───────────────────────────────── */
 .nl-errstate {
   display: flex; gap: 14px; align-items: center;
@@ -250,6 +263,7 @@
   .nl-spinner i { animation: none; opacity: .6; }
   .nl-mint-celebration .nl-pearl-well { animation: none; }
   .nl-errglyph-top, .nl-errglyph-bot, .nl-errglyph-crack { animation: none !important; stroke-dashoffset: 0 !important; transform: none !important; }
+  .nl-wave { animation: none; }
 }
 
 /* ── Payoff preview panel ─────────────────────────────────────────────────── */
