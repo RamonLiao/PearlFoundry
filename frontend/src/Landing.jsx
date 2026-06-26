@@ -102,15 +102,17 @@ function LandingLedgerRoadmap() {
         </table>
         <p className="nll-foot-note">Ranked by realised PnL — visible before you connect.</p>
       </div>
-      <ul className="nll-roadmap">
+      <div className="nll-roadmap-rail">
         <h2 className="nll-h2">Roadmap</h2>
-        {ROADMAP.map((r) => (
-          <li className="nll-road-item" key={r.title}>
-            <span className="nll-tick" aria-hidden="true">✓</span>
-            <span><b>{r.title}</b> — {r.body}</span>
-          </li>
-        ))}
-      </ul>
+        <ul className="nll-roadmap">
+          {ROADMAP.map((r) => (
+            <li className="nll-road-item" key={r.title}>
+              <span className="nll-tick" aria-hidden="true">✓</span>
+              <span><b>{r.title}</b> — {r.body}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }
