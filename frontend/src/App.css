@@ -213,7 +213,6 @@
   .nl-statuspip--claimable { animation: none; }
   .nl-btn { transition: none; }
   .nl-mast-logo { animation: none; }
-  .nl-mast-logo-btn .nl-mast-logo { transition: none; }
   .nl-btn--primary { transition: none; }
   .nl-caustic, .nl-bubble { animation: none; }
   .nl-bubble { opacity: 0; }
@@ -344,20 +343,9 @@
   to   { opacity: 1; transform: translateY(0)   scale(1); }
 }
 
-/* masthead logo as a click-to-cycle easter-egg button (Treatment A reveal) */
-.nl-mast-logo-btn {
-  appearance: none; background: none; border: none; padding: 0; cursor: pointer;
-  border-radius: 50%; line-height: 0; flex: none;
-}
-.nl-mast-logo-btn .nl-mast-logo {
-  display: block;
-  filter: drop-shadow(0 12px 20px rgba(227,162,63,.45)) grayscale(1) opacity(.85);
-  transition: filter .45s ease;
-}
-.nl-mast-logo-btn:hover .nl-mast-logo,
-.nl-mast-logo-btn:focus-visible .nl-mast-logo {
-  filter: drop-shadow(0 12px 20px rgba(227,162,63,.45)) grayscale(0) opacity(1);
-}
-.nl-mast-logo-btn:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 4px; }
-/* freeze the bob while keyboard-focused so the focus ring doesn't bob */
-.nl-mast-logo-btn:focus-visible .nl-mast-logo { animation: none; }
+/* logo is now a home link (no easter-egg); cycle moved to the eyebrow button */
+.nl-mast-logo-link { display: inline-flex; border-radius: 50%; }
+.nl-mast-logo-link:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 3px; }
+
+.nl-eyebrow-cycle { display: inline-flex; align-items: center; padding: 0; margin: 0; background: none; border: none; cursor: pointer; color: inherit; -webkit-appearance: none; appearance: none; }
+.nl-eyebrow-cycle:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; border-radius: 4px; }
