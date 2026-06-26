@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { useCurrentAccount, useDAppKit, useCurrentClient } from '@mysten/dapp-kit-react';
 import { prepareMint, finalizeMint, quoteMint } from './mint.js';
@@ -107,18 +108,20 @@ export default function App() {
     <div className="nl-app">
       <Sea />
       <header className="nl-masthead nl-section" style={{ '--i': 0 }}>
-        <button type="button" className="nl-mast-logo-btn" aria-label="PearlFoundry"
-          onClick={() => setMascotIdx((i) => (i + 1) % MASCOT_CYCLE.length)}>
+        <Link to="/" className="nl-mast-logo-link" aria-label="PearlFoundry home">
           <img className="nl-mast-logo"
             src={mascotSrc(MASCOT_CYCLE[mascotIdx])}
             alt="" width="80" height="80" />
-        </button>
+        </Link>
         <div className="nl-mast-titles">
           <span className="nl-eyebrow">
-            <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 21C5 16 3 10.5 3 8a4.2 3.4 0 0 1 18 0c0 2.5-2 8-9 13Z" />
-              <path d="M12 21V8.5M12 21 7.4 10M12 21 16.6 10M12 21 4.6 12.5M12 21 19.4 12.5" />
-            </svg>
+            <button type="button" className="nl-eyebrow-cycle" aria-label="Cycle mascot"
+              onClick={() => setMascotIdx((i) => (i + 1) % MASCOT_CYCLE.length)}>
+              <svg className="nl-li" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 21C5 16 3 10.5 3 8a4.2 3.4 0 0 1 18 0c0 2.5-2 8-9 13Z" />
+                <path d="M12 21V8.5M12 21 7.4 10M12 21 16.6 10M12 21 4.6 12.5M12 21 19.4 12.5" />
+              </svg>
+            </button>
             Testnet · DeepBook Predict
           </span>
           <h1 className="nl-mast-title">Pearl<em>Foundry</em></h1>
