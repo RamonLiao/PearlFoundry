@@ -15,7 +15,6 @@ import Leaderboard from './Leaderboard.jsx';
 import Mascot from './Mascot.jsx';
 import { mascotSrc, MASCOT_VARIANT } from './mascot.js';
 import Sea from './Sea.jsx';
-import './App.css';
 
 const MASCOT_CYCLE = [MASCOT_VARIANT.SERENE, MASCOT_VARIANT.JOYFUL, MASCOT_VARIANT.SHOWY];
 
