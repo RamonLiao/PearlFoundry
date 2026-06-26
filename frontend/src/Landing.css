@@ -29,3 +29,40 @@
 .nll-orb { position: absolute; width: 340px; height: 340px; border-radius: 50%; background: radial-gradient(circle at 50% 45%, rgba(215, 206, 242, 0.55), rgba(205, 234, 223, 0.25) 55%, transparent 72%); filter: blur(6px); z-index: 0; }
 .nll-hero-mascot { position: relative; z-index: 1; } /* mascot's only shadow = its own pearl-well glow */
 .nll-hero-mascot .nl-pearl-well { animation: nl-clam-open 560ms ease-out 1 both; } /* signature load beat (reuses App.css keyframe) */
+
+/* --- shared band --- */
+.nll-band { margin-top: 36px; padding: 8px 0; }
+.nll-h2 { font-family: var(--font-display); font-size: 22px; margin: 0 0 18px; color: var(--pearl); }
+
+/* --- problem: numbered cells (3-col) --- */
+.nll-cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.nll-cell { background: var(--obsidian-raised); border: 1px solid var(--hairline); border-radius: 16px; padding: 20px; box-shadow: var(--shadow); }
+.nll-num { font-family: var(--font-mono); font-size: 12px; color: var(--gold-ink); font-weight: 700; }
+.nll-cell-h { font-family: var(--font-display); font-size: 16px; margin: 8px 0 6px; color: var(--pearl); }
+.nll-cell-p { font-size: 13px; line-height: 1.55; color: var(--pearl-dim); margin: 0; }
+
+/* --- how-it-works: ascending ladder (each rung climbs left→right & up) --- */
+.nll-ladder { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.nll-rung { background: var(--obsidian-raised); border: 1px solid var(--hairline); border-left: 3px solid var(--jade); border-radius: 14px; padding: 16px 20px; box-shadow: var(--shadow); margin-left: calc(var(--rung) * 56px); } /* rising staircase, echoes the payoff ladder */
+.nll-rung-key { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; color: var(--jade); font-weight: 700; }
+.nll-rung-p { font-size: 13px; line-height: 1.55; color: var(--pearl-dim); margin: 6px 0 0; }
+
+/* --- ledger + roadmap: weighted table + rail (asymmetry through-line) --- */
+.nll-lr { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; align-items: start; }
+.nll-lr-head { display: flex; align-items: center; gap: 10px; }
+.nll-chip { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 9px; border-radius: 999px; background: var(--surface-sunk); color: var(--pearl-dim); }
+.nll-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; }
+.nll-tr td { padding: 10px 8px; border-bottom: 1px solid var(--hairline); color: var(--pearl-dim); }
+.nll-num-cell { text-align: right; }
+.nll-tr--you td { background: var(--molten); color: #3d1a28; font-weight: 700; } /* molten = the one accent, on the trust signal */
+.nll-tr--you td:first-child { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
+.nll-tr--you td:last-child { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+.nll-foot-note { font-size: 12px; color: var(--ink-faint); margin: 10px 0 0; }
+.nll-roadmap { list-style: none; margin: 0; padding: 0; }
+.nll-road-item { display: flex; gap: 10px; font-size: 13px; color: var(--pearl-dim); line-height: 1.5; margin-bottom: 12px; }
+.nll-road-item b { color: var(--pearl); }
+.nll-tick { color: var(--jade); font-weight: 700; }
+
+/* --- footer --- */
+.nll-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--hairline); font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); }
+.nll-tag { padding: 3px 10px; border-radius: 999px; background: var(--surface-sunk); color: var(--jade); font-weight: 700; }
