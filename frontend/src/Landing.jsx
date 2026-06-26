@@ -136,6 +136,7 @@ export default function Landing() {
         <LandingLedgerRoadmap />
         <LandingFooter />
       </main>
+      <Link to="/app" className="nll-sticky-cta">Launch App ↗</Link>
     </div>
   );
 }
