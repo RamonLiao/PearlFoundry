@@ -1,0 +1,31 @@
+/* Landing-only styles. Theme tokens from theme.css; .nl-section + nl-reveal +
+   .sr-only come from global App.css (do not redeclare). */
+
+.nll { max-width: 1100px; margin: 0 auto; padding: 0 24px 64px; }
+
+/* --- masthead --- */
+.nll-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 0; }
+.nll-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--pearl); font-family: var(--font-display); font-weight: 600; font-size: 19px; }
+.nll-brand em { font-style: normal; color: var(--jade); }
+.nll-nav { display: flex; align-items: center; gap: 18px; }
+.nll-navlinks { display: flex; gap: 16px; font-family: var(--font-mono); font-size: 12px; }
+.nll-navlinks a { color: var(--pearl-dim); text-decoration: none; }
+.nll-navlinks a:hover { color: var(--jade); text-decoration: underline; text-underline-offset: 3px; }
+
+/* --- CTA (molten = the one saturated accent) --- */
+.nll-cta { display: inline-block; padding: 13px 26px; border-radius: 999px; background: var(--molten); color: #3d1a28; font-weight: 700; text-decoration: none; font-size: 14px; }
+.nll-cta--sm { padding: 8px 16px; font-size: 12px; }
+.nll-cta--ghost { background: none; border: 1px solid var(--hairline); color: var(--pearl); }
+.nll-cta:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 3px; }
+
+/* --- hero --- */
+.nll-hero { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 32px; align-items: center; padding: 56px 0 40px; }
+.nll-eyebrow { color: var(--gold-ink); }
+.nll-h1 { font-family: var(--font-display); font-variation-settings: 'opsz' 144; font-size: clamp(32px, 6vw, 60px); line-height: 1.05; letter-spacing: -0.02em; margin: 14px 0 16px; color: var(--pearl); }
+.nll-sub { font-size: 15px; line-height: 1.6; color: var(--pearl-dim); max-width: 52ch; margin: 0; }
+.nll-ctas { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
+
+.nll-hero-art { position: relative; display: flex; justify-content: center; align-items: center; }
+.nll-orb { position: absolute; width: 340px; height: 340px; border-radius: 50%; background: radial-gradient(circle at 50% 45%, rgba(215, 206, 242, 0.55), rgba(205, 234, 223, 0.25) 55%, transparent 72%); filter: blur(6px); z-index: 0; }
+.nll-hero-mascot { position: relative; z-index: 1; } /* mascot's only shadow = its own pearl-well glow */
+.nll-hero-mascot .nl-pearl-well { animation: nl-clam-open 560ms ease-out 1 both; } /* signature load beat (reuses App.css keyframe) */
