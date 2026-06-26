@@ -264,7 +264,7 @@
   .nl-mint-celebration .nl-pearl-well { animation: none; }
   .nl-errglyph-top, .nl-errglyph-bot, .nl-errglyph-crack { animation: none !important; stroke-dashoffset: 0 !important; transform: none !important; }
   .nl-wave { animation: none; }
-  .nl-chartskel { animation: none; }
+  .nl-chartskel { animation: none !important; }
 }
 
 /* ── Expanded-row payoff skeleton (nacre-swept staircase, not bars) ───────── */
