@@ -14,6 +14,7 @@ import { shortId } from './format.js';
 import MyNotes from './MyNotes.jsx';
 import Leaderboard from './Leaderboard.jsx';
 import Mascot from './Mascot.jsx';
+import ErrorState from './ErrorState.jsx';
 import { mascotSrc, MASCOT_VARIANT } from './mascot.js';
 import Sea from './Sea.jsx';
 
@@ -206,7 +207,13 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <button className="nl-btn nl-btn--primary" disabled title="Connect your wallet in the header to mint">Connect to mint</button>
+                <div className="nl-preconnect">
+                  <span className="nl-wave"><Mascot variant={MASCOT_VARIANT.JOYFUL} treatment="duotone" size={56} /></span>
+                  <div className="nl-preconnect-cta">
+                    <p className="nl-preconnect-h">Connect your wallet to begin</p>
+                    <button className="nl-btn nl-btn--primary nl-btn--hint" disabled title="Connect your wallet in the header to mint">Connect to mint</button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -226,7 +233,7 @@ export default function App() {
           <p className="nl-note">Manager kept on-chain (<code>{shortId(preview?.mgr)}</code>) — re-confirm anytime.
             <button className="nl-btn" disabled={mintPhase === 'minting'} onClick={onConfirmMint}>Confirm Mint</button></p>
         )}
-        {mintPhase === 'error' && <p className="nl-error">{mintErr}</p>}
+        {mintPhase === 'error' && <ErrorState message={mintErr} />}
         {mintPhase === 'minting' && (
           <p className="nl-note"><span className="nl-spinner" aria-hidden="true"><i /><i /><i /></span>Minting…</p>
         )}

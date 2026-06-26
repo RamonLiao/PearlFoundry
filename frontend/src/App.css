@@ -208,6 +208,48 @@
 /* static override: caller opted out (compact rows) */
 .nl-noanim { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
 
+/* ── Pre-connect greeter ─────────────────────────────────────────────────── */
+.nl-preconnect { display: flex; align-items: center; gap: 16px; }
+.nl-preconnect-cta { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+/* copy leads; the disabled button is a hint, not a co-equal CTA */
+.nl-preconnect-h { font-family: var(--font-display); font-weight: 600; font-size: 17px;
+  color: var(--pearl); margin: 0; }
+.nl-btn--hint:disabled { opacity: .6; }
+/* finite friendly wave (2 cycles, then rests) — wrapper is inline-block so the
+   transform is stable across line wraps */
+.nl-wave { display: inline-block; transform-origin: 70% 90%;
+  animation: nl-wave 1.1s ease-in-out 2; }
+@keyframes nl-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-7deg); } 60% { transform: rotate(5deg); } }
+
+/* ── ErrorState (cracked-shell error card) ───────────────────────────────── */
+.nl-errstate {
+  display: flex; gap: 14px; align-items: center;
+  background: var(--obsidian-raised);
+  border: 1px solid #ead9d2; border-left: 3px solid var(--rust);
+  border-radius: 14px; padding: 14px 16px; margin: 12px 0 0;
+}
+.nl-errstate-h { font-family: var(--font-display); font-weight: 600; font-size: 16px;
+  color: #7a3a2c; margin: 0 0 3px; }
+/* body text = ink (≈10:1), NOT rust (would fail AA at 3.1:1) */
+.nl-errstate-p { font-family: var(--font-mono); font-size: 12px; line-height: 1.55;
+  color: var(--pearl); margin: 0; white-space: pre-wrap; word-break: break-word; }
+.nl-errglyph { width: 46px; height: 46px; flex: none; }
+/* compact (row-level): much lighter — no border, tiny glyph, single line */
+.nl-errstate--compact { gap: 9px; padding: 8px 10px; border-left: none; align-items: flex-start; margin: 8px 0 0; }
+.nl-errstate--compact .nl-errglyph { width: 16px; height: 16px; margin-top: 1px; }
+.nl-errstate--compact .nl-errstate-p { font-size: 11.5px; }
+
+/* one-shot break on mount; settles. No horizontal card-shake (cliché). */
+.nl-errglyph-top { transform-box: fill-box; transform-origin: center;
+  animation: nl-shell-top .3s cubic-bezier(.3,.7,.4,1) both; }
+.nl-errglyph-bot { transform-box: fill-box; transform-origin: center;
+  animation: nl-shell-bot .3s .06s cubic-bezier(.3,.7,.4,1) both; }
+.nl-errglyph-crack { stroke-dasharray: 1; stroke-dashoffset: 1;
+  animation: nl-crack-draw .35s ease-out .05s forwards; }
+@keyframes nl-shell-top { to { transform: translateY(-2px) rotate(-2deg); } }
+@keyframes nl-shell-bot { to { transform: translateY(2px) rotate(2deg); } }
+@keyframes nl-crack-draw { to { stroke-dashoffset: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   .nl-section, .nl-status { opacity: 1; transform: none; animation: none; }
   .nl-statuspip--claimable { animation: none; }
@@ -220,6 +262,20 @@
   .nl-detail-close { transition: none; }
   .nl-spinner i { animation: none; opacity: .6; }
   .nl-mint-celebration .nl-pearl-well { animation: none; }
+  .nl-errglyph-top, .nl-errglyph-bot, .nl-errglyph-crack { animation: none !important; stroke-dashoffset: 0 !important; transform: none !important; }
+  .nl-wave { animation: none; }
+  .nl-chartskel { animation: none !important; }
+}
+
+/* ── Expanded-row payoff skeleton (nacre-swept staircase, not bars) ───────── */
+.nl-chartskel {
+  width: 100%; max-width: 480px; aspect-ratio: 420 / 250; margin: 4px auto 0;
+  background: linear-gradient(100deg, var(--surface-sunk) 30%, #efe7f3 50%, var(--surface-sunk) 70%);
+  background-size: 200% 100%;
+  animation: nl-skel-sweep 1.4s ease-in-out infinite;
+  -webkit-mask: var(--nl-chartskel-mask) center / 100% 100% no-repeat;
+  mask: var(--nl-chartskel-mask) center / 100% 100% no-repeat;
+  --nl-chartskel-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 420 250'%3E%3Cpath d='M50 30 V228 H400' fill='none' stroke='%23000' stroke-width='2'/%3E%3Cpath d='M60 200 H140 V160 H210 V120 H280 V80 H360' fill='none' stroke='%23000' stroke-width='6' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 /* ── Payoff preview panel ─────────────────────────────────────────────────── */

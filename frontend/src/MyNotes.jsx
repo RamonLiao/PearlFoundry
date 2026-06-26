@@ -8,6 +8,7 @@ import { EXPLORER, EXPLORER_OBJ } from './config.js';
 import { shortId } from './format.js';
 import { sponsoredClaim } from './claimSponsored.js';
 import Mascot from './Mascot.jsx';
+import ErrorState from './ErrorState.jsx';
 import { MASCOT_VARIANT } from './mascot.js';
 import './Leaderboard.css';
 import './App.css'; // nl-status*/nl-statuspip* are defined here; import so MyNotes styling resolves even if rendered standalone
@@ -279,12 +280,16 @@ export default function MyNotes({ account, signExec, dAppKit, client, sponsorAva
                           </svg>
                         </button>
                         {paramsCache[n.note_id]?.error
-                          ? <p className="nl-error">{paramsCache[n.note_id].error}</p>
+                          ? <ErrorState compact message={paramsCache[n.note_id].error} />
                           : paramsCache[n.note_id]?.curve
                             ? <PayoffChart curve={paramsCache[n.note_id].curve}
                                 forward={paramsCache[n.note_id].forward}
                                 settlementPrice={paramsCache[n.note_id].settlementPrice} size="full" animated={false} />
-                            : <p className="nl-note">Loading payoff…</p>}
+                            : (
+                              <div className="nl-chartskel">
+                                <span className="sr-only" role="status">Loading payoff…</span>
+                              </div>
+                            )}
                       </td>
                     </tr>
                   )}
@@ -295,12 +300,14 @@ export default function MyNotes({ account, signExec, dAppKit, client, sponsorAva
         </table>
       )}
 
-      {msg && (
-        <pre className={`nl-status ${msgKind === 'ok' ? 'nl-status--ok' : 'nl-status--err'}`}>
-          {msgKind === 'ok' ? '✓ ' : ''}{msg}
-          {claimUrl && <>{'\n'}<a className="nl-txlink" href={claimUrl} target="_blank" rel="noreferrer">{claimUrl} ↗</a></>}
-        </pre>
-      )}
+      {msg && (msgKind === 'err'
+        ? <ErrorState message={msg} />
+        : (
+          <pre className="nl-status nl-status--ok">
+            ✓ {msg}
+            {claimUrl && <>{'\n'}<a className="nl-txlink" href={claimUrl} target="_blank" rel="noreferrer">{claimUrl} ↗</a></>}
+          </pre>
+        ))}
     </section>
   );
 }

@@ -19,7 +19,6 @@
 .nl-refresh:hover:not(:disabled) { color: var(--pearl); border-color: rgba(58,51,64,.22); }
 .nl-refresh:disabled { opacity: 0.5; cursor: default; }
 
-.nl-error { font-family: var(--font-mono); font-size: 12px; color: var(--rust); white-space: pre-wrap; margin: 12px 0 0; }
 .nl-empty { font-family: var(--font-mono); font-size: 13px; color: var(--pearl-dim); margin: 16px 0 4px; }
 
 .nl-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -64,7 +63,6 @@
 .nl-row--expandable { cursor: pointer; }
 .nl-detailrow .nl-detail { padding: 8px 12px 14px; background: rgba(58, 51, 64, 0.02); }
 .nl-detail svg { max-width: 100%; }
-.nl-error { color: var(--rust); font-family: var(--font-mono); font-size: 12px; margin: 0; }
 .nl-note { color: var(--ink-faint); font-family: var(--font-mono); font-size: 12px; margin: 0; }
 
 /* load skeleton — nacre sweep (NOT a grey pulse); keyframe MUST be nl-skel-sweep
