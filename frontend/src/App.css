@@ -208,6 +208,35 @@
 /* static override: caller opted out (compact rows) */
 .nl-noanim { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
 
+/* ── ErrorState (cracked-shell error card) ───────────────────────────────── */
+.nl-errstate {
+  display: flex; gap: 14px; align-items: center;
+  background: var(--obsidian-raised);
+  border: 1px solid #ead9d2; border-left: 3px solid var(--rust);
+  border-radius: 14px; padding: 14px 16px; margin: 12px 0 0;
+}
+.nl-errstate-h { font-family: var(--font-display); font-weight: 600; font-size: 16px;
+  color: #7a3a2c; margin: 0 0 3px; }
+/* body text = ink (≈10:1), NOT rust (would fail AA at 3.1:1) */
+.nl-errstate-p { font-family: var(--font-mono); font-size: 12px; line-height: 1.55;
+  color: var(--pearl); margin: 0; white-space: pre-wrap; word-break: break-word; }
+.nl-errglyph { width: 46px; height: 46px; flex: none; }
+/* compact (row-level): much lighter — no border, tiny glyph, single line */
+.nl-errstate--compact { gap: 9px; padding: 8px 10px; border-left: none; align-items: flex-start; margin: 8px 0 0; }
+.nl-errstate--compact .nl-errglyph { width: 16px; height: 16px; margin-top: 1px; }
+.nl-errstate--compact .nl-errstate-p { font-size: 11.5px; }
+
+/* one-shot break on mount; settles. No horizontal card-shake (cliché). */
+.nl-errglyph-top { transform-box: fill-box; transform-origin: center;
+  animation: nl-shell-top .3s cubic-bezier(.3,.7,.4,1) both; }
+.nl-errglyph-bot { transform-box: fill-box; transform-origin: center;
+  animation: nl-shell-bot .3s .06s cubic-bezier(.3,.7,.4,1) both; }
+.nl-errglyph-crack { stroke-dasharray: 1; stroke-dashoffset: 1;
+  animation: nl-crack-draw .35s ease-out .05s forwards; }
+@keyframes nl-shell-top { to { transform: translateY(-2px) rotate(-2deg); } }
+@keyframes nl-shell-bot { to { transform: translateY(2px) rotate(2deg); } }
+@keyframes nl-crack-draw { to { stroke-dashoffset: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   .nl-section, .nl-status { opacity: 1; transform: none; animation: none; }
   .nl-statuspip--claimable { animation: none; }
@@ -220,6 +249,7 @@
   .nl-detail-close { transition: none; }
   .nl-spinner i { animation: none; opacity: .6; }
   .nl-mint-celebration .nl-pearl-well { animation: none; }
+  .nl-errglyph-top, .nl-errglyph-bot, .nl-errglyph-crack { animation: none !important; stroke-dashoffset: 0 !important; transform: none !important; }
 }
 
 /* ── Payoff preview panel ─────────────────────────────────────────────────── */
